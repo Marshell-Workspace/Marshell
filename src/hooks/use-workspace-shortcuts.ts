@@ -1,57 +1,25 @@
-"use client";
-
-import { useHotkeys } from "react-hotkeys-hook";
-import { useWorkspaceStore } from "@/stores/workspace-store";
+import { useEffect } from "react";
+import { handleApplicationShortcut } from "@/lib/app-shortcuts";
 
 /**
- * Registers Ctrl+1 through Ctrl+9 to switch workspaces by position.
- * Matches the workspace array order (index 0 = Ctrl+1, index 8 = Ctrl+9).
+ * Registers global application keyboard shortcuts in the capture phase:
+ * - Ctrl+` / Cmd+`: Toggle Main Agent
+ * - Ctrl+B / Cmd+B: Toggle Sidebar
+ * - Ctrl+K / Cmd+K: Toggle Command Palette
+ * - Ctrl+1..8 / Cmd+1..8: Switch focus between terminal panes
+ *
+ * Uses capture-phase listener to guarantee that global application shortcuts
+ * are intercepted before xterm or any focused element can consume or encode them.
  */
 export function useWorkspaceShortcuts() {
-  const workspaces = useWorkspaceStore((s) => s.workspaces);
-  const setActiveWorkspace = useWorkspaceStore((s) => s.setActiveWorkspace);
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      handleApplicationShortcut(e);
+    };
 
-  const switchTo = (index: number) => {
-    const ws = workspaces[index];
-    if (ws) {
-      setActiveWorkspace(ws.id);
-    }
-  };
-
-  useHotkeys("ctrl+1", () => switchTo(0), {
-    enableOnFormTags: false,
-    enabled: workspaces.length > 0,
-  });
-  useHotkeys("ctrl+2", () => switchTo(1), {
-    enableOnFormTags: false,
-    enabled: workspaces.length > 1,
-  });
-  useHotkeys("ctrl+3", () => switchTo(2), {
-    enableOnFormTags: false,
-    enabled: workspaces.length > 2,
-  });
-  useHotkeys("ctrl+4", () => switchTo(3), {
-    enableOnFormTags: false,
-    enabled: workspaces.length > 3,
-  });
-  useHotkeys("ctrl+5", () => switchTo(4), {
-    enableOnFormTags: false,
-    enabled: workspaces.length > 4,
-  });
-  useHotkeys("ctrl+6", () => switchTo(5), {
-    enableOnFormTags: false,
-    enabled: workspaces.length > 5,
-  });
-  useHotkeys("ctrl+7", () => switchTo(6), {
-    enableOnFormTags: false,
-    enabled: workspaces.length > 6,
-  });
-  useHotkeys("ctrl+8", () => switchTo(7), {
-    enableOnFormTags: false,
-    enabled: workspaces.length > 7,
-  });
-  useHotkeys("ctrl+9", () => switchTo(8), {
-    enableOnFormTags: false,
-    enabled: workspaces.length > 8,
-  });
+    window.addEventListener("keydown", handleKeyDown, { capture: true });
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown, { capture: true });
+    };
+  }, []);
 }

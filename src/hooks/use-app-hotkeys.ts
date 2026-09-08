@@ -1,9 +1,7 @@
 "use client";
 
 import { useHotkeys } from "react-hotkeys-hook";
-import { useSidebar } from "@/components/sidebar";
 import { hotkeys } from "@/config/hotkeys";
-import { useCommandPaletteStore } from "@/stores/command-palette-store";
 import { useHotkeysDialogStore } from "@/stores/hotkeys-store";
 
 interface UseAppHotkeysOptions {
@@ -11,38 +9,9 @@ interface UseAppHotkeysOptions {
 }
 
 export function useAppHotkeys({ navigate }: UseAppHotkeysOptions) {
-  const { toggleSidebar } = useSidebar();
   const toggleHotkeysDialog = useHotkeysDialogStore((s) => s.toggle);
-  const toggleCommandPalette = useCommandPaletteStore((s) => s.toggle);
 
   const getKeys = (id: string) => hotkeys.find((h) => h.id === id)?.keys || "";
-
-  // Command Palette
-  useHotkeys(
-    getKeys("command-palette"),
-    (e: KeyboardEvent) => {
-      e.preventDefault();
-      toggleCommandPalette();
-    },
-    { enableOnFormTags: false, delimiter: "|" }
-  );
-
-  // Toggle Sidebar
-  useHotkeys(
-    getKeys("toggle-sidebar"),
-    (e: KeyboardEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      toggleSidebar();
-    },
-    {
-      enableOnFormTags: false,
-      delimiter: "|",
-      eventListenerOptions: {
-        capture: true,
-      },
-    }
-  );
 
   // Go to Settings
   useHotkeys(

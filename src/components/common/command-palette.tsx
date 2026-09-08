@@ -37,15 +37,14 @@ import {
   DrawerTitle,
 } from "@/components/drawer";
 import { Kbd } from "@/components/kbd";
-import { useSidebar } from "@/components/sidebar";
 import { hotkeys } from "@/config/hotkeys";
 import { useDrawerHistory } from "@/hooks/use-drawer-history";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useTranslations } from "@/i18n";
-import { formatHotkeyDisplay } from "@/lib/app-utils";
-import { cn } from "@/lib/utils";
+import { cn, formatHotkeyDisplay } from "@/lib/utils";
 import { useCommandPaletteStore } from "@/stores/command-palette-store";
 import { useHotkeysDialogStore } from "@/stores/hotkeys-store";
+import { useLayoutStore } from "@/stores/layout-store";
 import { useWorkspaceStore } from "@/stores/workspace-store";
 
 function CommandMenuItem({
@@ -78,7 +77,6 @@ export function CommandPalette({
   const { isOpen, close } = useCommandPaletteStore();
   useDrawerHistory(isOpen, close);
   const isMobile = useIsMobile();
-  const { toggleSidebar } = useSidebar();
   const toggleHotkeysDialog = useHotkeysDialogStore((s) => s.toggle);
 
   // Workspaces access
@@ -105,7 +103,7 @@ export function CommandPalette({
     const isSequence = hk.keys.includes(">");
     return (
       <CommandShortcut className="ml-auto hidden items-center gap-1 md:flex">
-        {keys.map((key, i) => (
+        {keys.map((key: string, i: number) => (
           <React.Fragment key={key}>
             <Kbd>{key}</Kbd>
             {isSequence && i < keys.length - 1 && (
@@ -192,7 +190,9 @@ export function CommandPalette({
           <CommandGroup className={groupClasses} heading={t("general")}>
             {!isMobile && (
               <CommandMenuItem
-                onSelect={() => runCommand(() => toggleSidebar())}
+                onSelect={() =>
+                  runCommand(() => useLayoutStore.getState().toggleSidebar())
+                }
               >
                 <PanelLeft />
                 <span>{t("toggleSidebar")}</span>

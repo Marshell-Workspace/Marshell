@@ -3,6 +3,7 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { safeUUID } from "@/lib/uuid";
+import { useTerminalFocusStore } from "@/stores/terminal-focus-store";
 
 export interface TerminalPane {
   id: string;
@@ -51,16 +52,19 @@ export interface Workspace {
 
 interface WorkspaceState {
   activeWorkspaceId: string | null;
+  addTerminal: (workspaceId: string) => TerminalPane | null;
   createWorkspace: (
     name: string,
     terminalCount: number,
     directory?: string,
     autoCommand?: string
   ) => Workspace;
+  deleteTerminal: (workspaceId: string, terminalId: string) => void;
   deleteWorkspace: (id: string) => void;
   duplicateWorkspace: (id: string) => void;
   recentDirectories: string[];
   renameWorkspace: (id: string, name: string) => void;
+  replaceTerminal: (workspaceId: string, terminalId: string) => string | null;
   setActiveWorkspace: (id: string) => void;
   togglePinWorkspace: (id: string) => void;
   workspaces: Workspace[];
@@ -82,10 +86,193 @@ function createPanes(count: number): TerminalPane[] {
 
 export const useWorkspaceStore = create<WorkspaceState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       activeWorkspaceId: null,
       workspaces: [],
       recentDirectories: [],
+      addTerminal: (workspaceId: string) => {
+        let createdPane: TerminalPane | null = null;
+        set((state) => {
+          const workspace = state.workspaces.find((w) => w.id === workspaceId);
+          if (!workspace || workspace.panes.length >= 8) {
+            return {};
+          }
+
+          const usedNames = new Set(workspace.panes.map((p) => p.name));
+          const availableNames = FRIENDLY_NAMES.filter(
+            (n) => !usedNames.has(n)
+          );
+          const randomName =
+            availableNames.length > 0
+              ? availableNames[
+                  Math.floor(Math.random() * availableNames.length)
+                ]
+              : FRIENDLY_NAMES[
+                  Math.floor(Math.random() * FRIENDLY_NAMES.length)
+                ];
+
+          const newIndex = workspace.panes.length;
+          createdPane = {
+            id: generateId(),
+            title: `Terminal ${newIndex + 1}`,
+            name: randomName,
+          };
+
+          const newPanes = [...workspace.panes, createdPane];
+
+          return {
+            workspaces: state.workspaces.map((w) =>
+              w.id === workspaceId
+                ? {
+                    ...w,
+                    panes: newPanes,
+                    terminalCount: newPanes.length,
+                  }
+                : w
+            ),
+          };
+        });
+
+        if (createdPane) {
+          const newId = (createdPane as TerminalPane).id;
+          setTimeout(() => {
+            useTerminalFocusStore.getState().focusTerminal(newId);
+          }, 50);
+        }
+
+        return createdPane;
+      },
+      deleteTerminal: (workspaceId: string, terminalId: string) => {
+        // 1. Terminate backend PTY process
+        import("@tauri-apps/api/core")
+          .then(({ isTauri, invoke }) => {
+            if (isTauri()) {
+              invoke("close_terminal", { id: terminalId }).catch(() => {
+                /* ignore */
+              });
+            }
+          })
+          .catch(() => {
+            /* ignore */
+          });
+
+        // 2. Handle active focus migration
+        const { focusedTerminalId, focusTerminal, setFocusedTerminalId } =
+          useTerminalFocusStore.getState();
+
+        set((state) => {
+          const workspace = state.workspaces.find((w) => w.id === workspaceId);
+          if (!workspace) {
+            return {};
+          }
+
+          const deletedIndex = workspace.panes.findIndex(
+            (p) => p.id === terminalId
+          );
+          if (deletedIndex === -1) {
+            return {};
+          }
+
+          const remainingPanes = workspace.panes
+            .filter((p) => p.id !== terminalId)
+            .map((p, idx) => ({
+              ...p,
+              title: `Terminal ${idx + 1}`,
+            }));
+
+          if (focusedTerminalId === terminalId) {
+            let nextFocusTarget: string | null = null;
+            if (remainingPanes.length > 0) {
+              if (deletedIndex < remainingPanes.length) {
+                nextFocusTarget = remainingPanes[deletedIndex]?.id ?? null;
+              } else {
+                nextFocusTarget = remainingPanes.at(-1)?.id ?? null;
+              }
+            }
+
+            if (nextFocusTarget) {
+              setTimeout(() => {
+                focusTerminal(nextFocusTarget);
+              }, 50);
+            } else {
+              setFocusedTerminalId(null);
+            }
+          }
+
+          const updatedWorkspaces = state.workspaces.map((w) =>
+            w.id === workspaceId
+              ? {
+                  ...w,
+                  panes: remainingPanes,
+                  terminalCount: remainingPanes.length,
+                }
+              : w
+          );
+
+          return {
+            workspaces: updatedWorkspaces,
+          };
+        });
+      },
+      replaceTerminal: (workspaceId: string, terminalId: string) => {
+        // 1. Terminate old backend PTY process
+        import("@tauri-apps/api/core")
+          .then(({ isTauri, invoke }) => {
+            if (isTauri()) {
+              invoke("close_terminal", { id: terminalId }).catch(() => {
+                /* ignore */
+              });
+            }
+          })
+          .catch(() => {
+            /* ignore */
+          });
+
+        const newTerminalId = generateId();
+
+        set((state) => {
+          const workspace = state.workspaces.find((w) => w.id === workspaceId);
+          if (!workspace) {
+            return {};
+          }
+
+          const paneIndex = workspace.panes.findIndex(
+            (p) => p.id === terminalId
+          );
+          if (paneIndex === -1) {
+            return {};
+          }
+
+          const oldPane = workspace.panes[paneIndex];
+          if (!oldPane) {
+            return {};
+          }
+
+          const newPanes = [...workspace.panes];
+          newPanes[paneIndex] = {
+            ...oldPane,
+            id: newTerminalId,
+          };
+
+          return {
+            workspaces: state.workspaces.map((w) =>
+              w.id === workspaceId
+                ? {
+                    ...w,
+                    panes: newPanes,
+                  }
+                : w
+            ),
+          };
+        });
+
+        // 2. Automatically migrate focus to the newly spawned terminal instance
+        setTimeout(() => {
+          useTerminalFocusStore.getState().focusTerminal(newTerminalId);
+        }, 50);
+
+        return newTerminalId;
+      },
       createWorkspace: (
         name: string,
         terminalCount: number,
@@ -178,6 +365,21 @@ export const useWorkspaceStore = create<WorkspaceState>()(
       },
       setActiveWorkspace: (id: string) => {
         set({ activeWorkspaceId: id });
+        const workspace = get().workspaces.find((w) => w.id === id);
+        if (workspace && workspace.panes.length > 0) {
+          const focusedId = useTerminalFocusStore.getState().focusedTerminalId;
+          const isFocusedInWorkspace = workspace.panes.some(
+            (p) => p.id === focusedId
+          );
+          if (!isFocusedInWorkspace) {
+            const firstPane = workspace.panes[0];
+            if (firstPane) {
+              setTimeout(() => {
+                useTerminalFocusStore.getState().focusTerminal(firstPane.id);
+              }, 60);
+            }
+          }
+        }
       },
       togglePinWorkspace: (id: string) => {
         set((state) => ({

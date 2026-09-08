@@ -73,16 +73,12 @@ export function ProjectsNav({
             <SidebarMenuItem key={item.name}>
               <SidebarMenuButton asChild={true} isActive={active}>
                 <LinkComponent
-                  data-tooltip={t(
-                    item.translationKey as Parameters<typeof t>[0]
-                  )}
+                  data-tooltip={t(item.translationKey as any)}
                   href={item.url}
                   onClick={handleLinkClick}
                 >
                   <item.icon />
-                  <span>
-                    {t(item.translationKey as Parameters<typeof t>[0])}
-                  </span>
+                  <span>{t(item.translationKey as any)}</span>
                 </LinkComponent>
               </SidebarMenuButton>
               <DropdownMenu>

@@ -65,11 +65,11 @@
     "terminalBadge": "{count} terminal",
     "layoutFull": "Full screen",
     "layout2cols": "2 columns",
-    "layout3cols": "3 columns",
+    "layout3cols": "2+1 grid",
     "layout2x2": "2×2 grid",
-    "layout3plus2": "3+2 grid",
+    "layout3plus2": "2+2+1 grid",
     "layout3x2": "3×2 grid",
-    "layout4plus3": "4+3 grid",
+    "layout4plus3": "3+3+1 grid",
     "layout4x2": "4×2 grid"
   },
   "HotkeysDialog": {
@@ -87,6 +87,14 @@
     "goAnalytics": "Go to Analytics",
     "goOverview": "Go to Overview",
     "goReports": "Go to Reports",
+    "terminal1": "Focus Terminal 1",
+    "terminal2": "Focus Terminal 2",
+    "terminal3": "Focus Terminal 3",
+    "terminal4": "Focus Terminal 4",
+    "terminal5": "Focus Terminal 5",
+    "terminal6": "Focus Terminal 6",
+    "terminal7": "Focus Terminal 7",
+    "terminal8": "Focus Terminal 8",
     "then": "then"
   },
   "CommandPalette": {

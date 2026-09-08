@@ -10,13 +10,13 @@ import {
   Loader2,
   Lock,
   ShieldCheck,
-  Terminal,
   Zap,
 } from "lucide-react";
 import { Suspense, useEffect, useState } from "react";
 import { Button } from "@/components/button";
 import { Input } from "@/components/input";
 import { Label } from "@/components/label";
+import { Logo } from "@/components/landing/logo";
 
 const hasClerkPublishableKey = !!(
   typeof process !== "undefined" &&
@@ -44,9 +44,10 @@ function HeroShowcase({ port }: { port: string }) {
       {/* Top Header Logo */}
       <div className="relative z-10 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex size-10 items-center justify-center rounded-xl border border-primary/30 bg-primary/10 text-primary shadow-inner">
-            <Terminal className="size-5" />
-          </div>
+          <Logo
+            className="size-10 shrink-0 object-contain drop-shadow-md"
+            size={40}
+          />
           <span className="font-bold font-sans text-xl text-foreground tracking-tight">
             Hyperion
           </span>

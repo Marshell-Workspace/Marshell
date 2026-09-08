@@ -1,6 +1,7 @@
 "use client";
 
 import { ChevronRight, Search } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import type { ComponentType } from "react";
 import {
   Breadcrumb,
@@ -11,7 +12,7 @@ import {
 import { Button } from "@/components/button";
 import { NotificationCenter } from "@/components/common/notification-center";
 import { Kbd } from "@/components/kbd";
-import { formatHotkeyDisplay } from "@/lib/app-utils";
+import { formatHotkeyDisplay } from "@/lib/utils";
 import { useCommandPaletteStore } from "@/stores/command-palette-store";
 import { useWorkspaceStore } from "@/stores/workspace-store";
 
@@ -38,7 +39,7 @@ export function AppHeader({ pathname, LinkComponent = "a" }: AppHeaderProps) {
   const hotkeyDisplay = formatHotkeyDisplay("mod+k");
 
   return (
-    <header className="flex h-10.5 shrink-0 items-center justify-between border-border/40 border-b bg-background/95 px-4 backdrop-blur-md transition-[width,height] ease-linear md:px-6">
+    <header className="flex h-10.5 shrink-0 items-center justify-between border-b border-border/40 bg-background/95 px-4 backdrop-blur-md transition-[width,height] ease-linear md:px-6">
       {/* Left section: breadcrumbs */}
       <div className="flex items-center gap-2">
         <Breadcrumb>
@@ -74,7 +75,18 @@ export function AppHeader({ pathname, LinkComponent = "a" }: AppHeaderProps) {
                 <ChevronRight className="size-3 text-muted-foreground/45" />
                 <BreadcrumbItem>
                   <BreadcrumbPage className="font-sans font-semibold text-foreground text-sm tracking-tight">
-                    {activeWorkspace.name}
+                    <AnimatePresence initial={false} mode="wait">
+                      <motion.span
+                        animate={{ opacity: 1, y: 0 }}
+                        className="inline-block"
+                        exit={{ opacity: 0, y: -2 }}
+                        initial={{ opacity: 0, y: 2 }}
+                        key={activeWorkspace.id}
+                        transition={{ duration: 0.16, ease: "easeOut" }}
+                      >
+                        {activeWorkspace.name}
+                      </motion.span>
+                    </AnimatePresence>
                   </BreadcrumbPage>
                 </BreadcrumbItem>
               </>
@@ -95,7 +107,7 @@ export function AppHeader({ pathname, LinkComponent = "a" }: AppHeaderProps) {
             <span>Search or command...</span>
           </span>
           <span className="flex items-center gap-0.5 opacity-80">
-            {hotkeyDisplay.map((key) => (
+            {hotkeyDisplay.map((key: string) => (
               <Kbd
                 className="h-4.5 min-w-4 px-1 font-bold text-[9px]"
                 key={key}

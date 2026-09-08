@@ -25,13 +25,12 @@ import {
   SidebarGroup,
   SidebarGroupLabel,
   SidebarMenu,
-  SidebarMenuAction,
   SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
 } from "@/components/sidebar";
 import { useMounted } from "@/hooks/use-mounted";
-import { cn } from "@/lib/utils";
+import { cn, formatHotkeyDisplay } from "@/lib/utils";
 import { useWorkspaceStore, type Workspace } from "@/stores/workspace-store";
 
 interface WorkspaceNavProps {
@@ -54,6 +53,7 @@ export function WorkspaceNav({ navigate, onNewWorkspace }: WorkspaceNavProps) {
 
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
 
   const handleSelect = useCallback(
     (id: string) => {
@@ -81,24 +81,40 @@ export function WorkspaceNav({ navigate, onNewWorkspace }: WorkspaceNavProps) {
   const pinnedWorkspaces = workspaces.filter((w) => w.isPinned);
   const regularWorkspaces = workspaces.filter((w) => !w.isPinned);
 
-  // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Self-contained item renderer
   const renderWorkspaceItem = (ws: Workspace) => {
     const isActive = ws.id === activeWorkspaceId;
+    const isMenuOpen = menuOpenId === ws.id;
+
     return (
-      <SidebarMenuItem className="group/item relative px-1.5" key={ws.id}>
+      <SidebarMenuItem
+        className="group/item relative px-1.5 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
+        key={ws.id}
+      >
         {isActive && (
           <motion.div
-            className="absolute top-1.5 bottom-1.5 left-0 z-20 w-[3px] rounded-full bg-primary shadow-[0_0_10px_var(--primary),0_0_20px_var(--primary)]"
+            className="absolute inset-x-1.5 inset-y-0 z-0 rounded-lg border border-white/25 bg-white/10 shadow-[0_4px_16px_rgba(0,0,0,0.3),inset_0_1px_1.5px_rgba(255,255,255,0.4)] backdrop-blur-xl group-data-[collapsible=icon]:inset-0 group-data-[collapsible=icon]:size-9 group-data-[collapsible=icon]:rounded-lg"
+            layoutId="activeWorkspacePill"
+            transition={{
+              type: "spring",
+              stiffness: 450,
+              damping: 35,
+            }}
+          />
+        )}
+
+        {isActive && (
+          <motion.div
+            className="absolute top-1.5 bottom-1.5 left-0 z-20 w-[3px] rounded-full bg-white shadow-[0_0_10px_rgba(255,255,255,0.8),0_0_20px_rgba(255,255,255,0.5)] group-data-[collapsible=icon]:-left-1 group-data-[collapsible=icon]:top-2 group-data-[collapsible=icon]:bottom-2"
             layoutId="activeWorkspaceIndicator"
-            transition={{ type: "spring", stiffness: 350, damping: 25 }}
+            transition={{ type: "spring", stiffness: 450, damping: 35 }}
           />
         )}
 
         {renamingId === ws.id ? (
-          <div className="flex h-10 w-full items-center gap-2 px-3">
+          <div className="relative z-10 flex h-8.5 w-full items-center gap-2 px-3">
             <input
               autoFocus
-              className="flex-1 rounded-md border border-primary/50 bg-background/80 px-2 py-1 font-sans text-foreground text-xs outline-none transition-all duration-200 focus:ring-2 focus:ring-primary/20"
+              className="flex-1 rounded-md border border-white/30 bg-white/10 backdrop-blur-md px-2 py-1 font-sans text-white text-xs outline-none transition-all duration-200 focus:ring-2 focus:ring-white/30"
               onBlur={() => handleRenameSave(ws.id)}
               onChange={(e) => setRenameValue(e.target.value)}
               onKeyDown={(e) => {
@@ -113,54 +129,73 @@ export function WorkspaceNav({ navigate, onNewWorkspace }: WorkspaceNavProps) {
           </div>
         ) : (
           <>
-            <SidebarMenuButton
+            <button
               className={cn(
-                "relative h-9 w-full justify-start gap-2 rounded-md transition-all duration-200 ease-out group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-2",
+                "relative z-10 flex h-8.5 w-full items-center justify-start gap-2 rounded-lg px-2.5 pr-8 font-medium text-xs transition-all duration-150 select-none outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                "group-data-[collapsible=icon]:size-9 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:rounded-lg",
                 isActive
-                  ? "bg-primary font-medium text-primary-foreground shadow-sm hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                  : "bg-transparent font-medium text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                  ? "cursor-default text-white font-semibold"
+                  : "text-white/70 hover:bg-white/[0.08] hover:text-white hover:border hover:border-white/15 backdrop-blur-sm active:scale-[0.99]"
               )}
-              isActive={isActive}
               onClick={() => handleSelect(ws.id)}
+              title={ws.name}
+              type="button"
             >
               <Terminal
                 className={cn(
-                  "size-4 shrink-0 transition-all duration-200",
+                  "size-4 shrink-0 transition-colors duration-150",
                   isActive
-                    ? "text-primary-foreground group-hover/menu-button:text-sidebar-accent-foreground"
-                    : "text-muted-foreground/60 group-hover/menu-button:text-foreground/80"
+                    ? "text-white"
+                    : "text-white/60 group-hover/item:text-white"
                 )}
               />
-              <span className="min-w-0 shrink truncate text-sm group-data-[collapsible=icon]:hidden">
+              <span
+                className={cn(
+                  "min-w-0 shrink truncate text-xs whitespace-nowrap group-data-[collapsible=icon]:hidden",
+                  isActive
+                    ? "text-white font-semibold drop-shadow-xs"
+                    : "text-white/70 group-hover/item:text-white"
+                )}
+              >
                 {ws.name}
               </span>
 
               {/* Terminal count pill */}
               <span
                 className={cn(
-                  "flex h-4 min-w-[16px] shrink-0 items-center justify-center rounded-full px-1 font-bold font-mono text-[10px] transition-all duration-200 group-data-[collapsible=icon]:hidden",
+                  "ml-auto flex h-4 min-w-[16px] shrink-0 items-center justify-center rounded-full px-1.5 font-bold font-mono text-[10px] backdrop-blur-md border transition-all duration-150 group-data-[collapsible=icon]:hidden",
                   isActive
-                    ? "bg-primary-foreground/20 text-primary-foreground group-hover/menu-button:bg-sidebar-accent-foreground/20 group-hover/menu-button:text-sidebar-accent-foreground"
-                    : "bg-muted text-muted-foreground/70 group-hover/menu-button:bg-muted/80"
+                    ? "bg-white/20 border-white/30 text-white shadow-xs"
+                    : "bg-white/5 border-white/15 text-white/70 group-hover/item:bg-white/10 group-hover/item:border-white/25 group-hover/item:text-white"
                 )}
               >
                 {ws.terminalCount}
               </span>
-            </SidebarMenuButton>
+            </button>
 
-            <DropdownMenu>
+            <DropdownMenu
+              onOpenChange={(open) => setMenuOpenId(open ? ws.id : null)}
+              open={isMenuOpen}
+            >
               <DropdownMenuTrigger asChild={true}>
-                <SidebarMenuAction
+                <button
+                  aria-label="Workspace options"
                   className={cn(
-                    "!right-2.5 !top-2 opacity-0 transition-all duration-200 group-hover/item:opacity-100",
+                    "absolute right-2.5 top-1/2 -translate-y-1/2 z-20 flex size-5.5 items-center justify-center rounded-md transition-all duration-150 group-data-[collapsible=icon]:hidden",
                     isActive
-                      ? "!text-primary-foreground hover:!bg-black/10 aria-expanded:!bg-black/10 group-hover/item:!text-sidebar-accent-foreground group-hover/item:hover:!bg-white/10 group-hover/item:aria-expanded:!bg-white/10"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      ? "text-primary-foreground/75 hover:bg-black/15 hover:text-primary-foreground aria-expanded:bg-black/15 aria-expanded:text-primary-foreground"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground",
+                    isMenuOpen
+                      ? "opacity-100"
+                      : "opacity-0 group-hover/item:opacity-100 group-focus-within/item:opacity-100 hover:opacity-100 focus-visible:opacity-100"
                   )}
-                  showOnHover={true}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                  }}
+                  type="button"
                 >
-                  <MoreHorizontal className="size-4" />
-                </SidebarMenuAction>
+                  <MoreHorizontal className="size-3.5" />
+                </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 align={isMobile ? "end" : "start"}
@@ -210,14 +245,14 @@ export function WorkspaceNav({ navigate, onNewWorkspace }: WorkspaceNavProps) {
                 </DropdownMenuItem>
                 <DropdownMenuSeparator className="bg-border/40" />
                 <DropdownMenuItem
-                  className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+                  className="text-[#ff3b5c] focus:bg-[#e50914]/15 focus:text-[#ff3b5c]"
                   onClick={(e) => {
                     e.stopPropagation();
                     deleteWorkspace(ws.id);
                     toast.success("Workspace deleted");
                   }}
                 >
-                  <Trash2 className="mr-2 size-3.5" />
+                  <Trash2 className="mr-2 size-3.5 text-[#ff3b5c]" />
                   <span>Delete</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -229,36 +264,39 @@ export function WorkspaceNav({ navigate, onNewWorkspace }: WorkspaceNavProps) {
   };
 
   return (
-    <SidebarGroup className="px-2">
-      <div className="flex items-center justify-between px-2 py-2 group-data-[collapsible=icon]:hidden">
-        <SidebarGroupLabel className="font-bold text-micro-uppercase text-muted-foreground/60 tracking-widest">
+    <SidebarGroup className="px-2 group-data-[collapsible=icon]:px-1 group-data-[collapsible=icon]:py-0">
+      <div className="flex items-center justify-between px-2 py-1.5 group-data-[collapsible=icon]:hidden">
+        <SidebarGroupLabel className="font-semibold text-micro-uppercase text-muted-foreground/60 tracking-wider whitespace-nowrap">
           Workspaces
         </SidebarGroupLabel>
         <button
-          className="flex size-5 items-center justify-center rounded-md text-muted-foreground transition-all duration-200 hover:bg-muted hover:text-foreground"
+          className="flex size-5 items-center justify-center rounded text-muted-foreground transition-all duration-150 hover:bg-muted hover:text-foreground active:scale-95"
           onClick={onNewWorkspace}
-          title="New Workspace"
+          title={`New Workspace (${formatHotkeyDisplay("mod+n").join("+")})`}
           type="button"
         >
-          <Plus className="size-3.5 transition-transform duration-200 hover:rotate-90" />
+          <Plus className="size-3.5 transition-transform duration-150 hover:rotate-90" />
         </button>
       </div>
 
-      <SidebarMenu className="mt-1 gap-1.5">
-        <SidebarMenuItem className="px-1.5">
+      <SidebarMenu className="mt-1 gap-1.5 group-data-[collapsible=icon]:gap-1.5 group-data-[collapsible=icon]:items-center">
+        <SidebarMenuItem className="px-1.5 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
           <SidebarMenuButton
             className={cn(
-              "w-full justify-start gap-2.5 rounded-lg border px-3 py-5 font-semibold transition-all duration-300 ease-out active:scale-[0.98] group-data-[collapsible=icon]:p-2",
-              "border-primary/20 bg-gradient-to-r from-primary/10 to-primary/5 text-primary shadow-[0_4px_12px_-4px_rgba(255,224,194,0.06)] hover:border-primary/45 hover:from-primary/15 hover:to-primary/8 hover:shadow-[0_4px_16px_rgba(255,224,194,0.12)]"
+              "group/new-ws relative h-8.5 w-full justify-start gap-2 rounded-md border border-dashed border-border/70 bg-background/40 px-2.5 font-medium text-muted-foreground text-xs transition-colors duration-150 ease-out",
+              "group-data-[collapsible=icon]:size-9 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:rounded-lg group-data-[collapsible=icon]:border-border/60",
+              "hover:border-primary/50 hover:bg-primary/5 hover:text-primary active:scale-[0.98]"
             )}
             onClick={onNewWorkspace}
+            tooltip={`New Workspace (${formatHotkeyDisplay("mod+n").join("+")})`}
           >
-            <div className="flex size-5 shrink-0 items-center justify-center rounded bg-primary/10 transition-transform duration-300 group-hover:scale-110">
-              <Plus className="size-4 text-primary" />
-            </div>
-            <span className="select-none font-bold text-[10px] uppercase tracking-widest group-data-[collapsible=icon]:hidden">
+            <Plus className="size-4 shrink-0 transition-transform duration-200 ease-out group-hover/new-ws:rotate-90 group-hover/new-ws:text-primary" />
+            <span className="min-w-0 flex-1 truncate text-left whitespace-nowrap group-data-[collapsible=icon]:hidden">
               New Workspace
             </span>
+            <kbd className="ml-auto hidden rounded bg-muted/60 px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground/70 group-hover/new-ws:text-primary/70 md:inline-block group-data-[collapsible=icon]:hidden">
+              {formatHotkeyDisplay("mod+n").join("+")}
+            </kbd>
           </SidebarMenuButton>
         </SidebarMenuItem>
 
@@ -270,10 +308,10 @@ export function WorkspaceNav({ navigate, onNewWorkspace }: WorkspaceNavProps) {
             </p>
           </div>
         ) : (
-          <div className="mt-2.5 space-y-4">
+          <div className="mt-2.5 space-y-4 group-data-[collapsible=icon]:mt-1.5 group-data-[collapsible=icon]:space-y-2">
             {pinnedWorkspaces.length > 0 && (
-              <div className="space-y-1">
-                <div className="select-none px-3 font-semibold text-micro-uppercase text-muted-foreground/60 tracking-widest group-data-[collapsible=icon]:hidden">
+              <div className="space-y-1 group-data-[collapsible=icon]:space-y-1.5">
+                <div className="select-none px-3 font-semibold text-micro-uppercase text-muted-foreground/60 tracking-widest whitespace-nowrap group-data-[collapsible=icon]:hidden">
                   Pinned
                 </div>
                 {pinnedWorkspaces.map(renderWorkspaceItem)}
@@ -281,8 +319,8 @@ export function WorkspaceNav({ navigate, onNewWorkspace }: WorkspaceNavProps) {
             )}
 
             {regularWorkspaces.length > 0 && (
-              <div className="space-y-1">
-                <div className="select-none px-3 font-semibold text-micro-uppercase text-muted-foreground/60 tracking-widest group-data-[collapsible=icon]:hidden">
+              <div className="space-y-1 group-data-[collapsible=icon]:space-y-1.5">
+                <div className="select-none px-3 font-semibold text-micro-uppercase text-muted-foreground/60 tracking-widest whitespace-nowrap group-data-[collapsible=icon]:hidden">
                   Active
                 </div>
                 {regularWorkspaces.map(renderWorkspaceItem)}

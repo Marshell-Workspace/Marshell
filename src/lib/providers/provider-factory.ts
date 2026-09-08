@@ -130,12 +130,39 @@ export class OpenAICompatibleProvider implements AIProvider {
       });
       if (res.ok) {
         (window as any).__lastProviderError = null;
-      } else {
-        const bodyText = await res.text().catch(() => "");
-        (window as any).__lastProviderError =
-          `Status ${res.status}: ${bodyText || "Empty response"}`;
+        return true;
       }
-      return res.ok;
+
+      // Fallback for providers that require chat/completions for authentication (e.g. Inception, custom gateways)
+      const pingRes = await fetchFn(
+        combineUrl(this.baseUrl, "chat/completions"),
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${this.apiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model:
+              this.model ||
+              (this.baseUrl.includes("inceptionlabs.ai")
+                ? "mercury-2"
+                : "gpt-3.5-turbo"),
+            messages: [{ role: "user", content: "Ping" }],
+            max_tokens: 1,
+          }),
+        }
+      );
+
+      if (pingRes.ok) {
+        (window as any).__lastProviderError = null;
+        return true;
+      }
+
+      const bodyText = await pingRes.text().catch(() => "");
+      (window as any).__lastProviderError =
+        `Status ${pingRes.status || res.status}: ${bodyText || "Authentication failed"}`;
+      return false;
     } catch (err: any) {
       (window as any).__lastProviderError = err.message || String(err);
       return false;
@@ -205,36 +232,7 @@ export class OpenAICompatibleProvider implements AIProvider {
     onDelta: (delta: StreamDelta) => void,
     signal?: AbortSignal
   ): Promise<{ content: string; tool_calls?: any[] }> {
-    const isTauri =
-      typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
-    if (isTauri) {
-      const { invoke } = await import("@tauri-apps/api/core");
-      const { listen } = await import("@tauri-apps/api/event");
-
-      const unlisten = await listen<string>("llm-delta", (event) => {
-        onDelta({ content: event.payload });
-      });
-
-      try {
-        const fullContent = await invoke<string>("call_llm_stream", {
-          payload: {
-            provider: this.baseUrl.includes("generativelanguage.googleapis.com")
-              ? "google"
-              : "openai",
-            apiKey: this.apiKey,
-            baseUrl: this.baseUrl,
-            model: this.model,
-            messages,
-          },
-        });
-        unlisten();
-        return { content: fullContent };
-      } catch (err: any) {
-        unlisten();
-        throw new Error(err.message || String(err));
-      }
-    }
-
+    const fetchFn = this.getFetchFn();
     const requestBody = {
       model: this.model,
       messages,
@@ -242,17 +240,18 @@ export class OpenAICompatibleProvider implements AIProvider {
       stream: true,
     };
 
-    const response = await fetch("/api/proxy", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        url: combineUrl(this.baseUrl, "chat/completions"),
+    const response = await fetchFn(
+      combineUrl(this.baseUrl, "chat/completions"),
+      {
         method: "POST",
-        headers: { Authorization: `Bearer ${this.apiKey}` },
-        body: requestBody,
-      }),
-      signal,
-    });
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestBody),
+        signal,
+      }
+    );
 
     if (!response.ok) {
       throw new Error(`Stream Error: ${response.status}`);
@@ -550,34 +549,7 @@ export class AnthropicDirectProvider implements AIProvider {
     onDelta: (delta: StreamDelta) => void,
     signal?: AbortSignal
   ): Promise<{ content: string; tool_calls?: any[] }> {
-    const isTauri =
-      typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
-    if (isTauri) {
-      const { invoke } = await import("@tauri-apps/api/core");
-      const { listen } = await import("@tauri-apps/api/event");
-
-      const unlisten = await listen<string>("llm-delta", (event) => {
-        onDelta({ content: event.payload });
-      });
-
-      try {
-        const fullContent = await invoke<string>("call_llm_stream", {
-          payload: {
-            provider: "anthropic",
-            apiKey: this.apiKey,
-            baseUrl: this.baseUrl,
-            model: this.model,
-            messages,
-          },
-        });
-        unlisten();
-        return { content: fullContent };
-      } catch (err: any) {
-        unlisten();
-        throw new Error(err.message || String(err));
-      }
-    }
-
+    const fetchFn = this.getFetchFn();
     const { system, messages: anthropicMessages } =
       this.convertMessages(messages);
     const anthropicTools = this.convertTools(tools || []);
@@ -591,20 +563,15 @@ export class AnthropicDirectProvider implements AIProvider {
       stream: true,
     };
 
-    const response = await fetch("/api/proxy", {
+    const response = await fetchFn(combineUrl(this.baseUrl, "messages"), {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        url: combineUrl(this.baseUrl, "messages"),
-        method: "POST",
-        headers: {
-          "x-api-key": this.apiKey,
-          "anthropic-version": "2023-06-01",
-          "content-type": "application/json",
-          "dangerously-allow-developer-user-access": "true",
-        },
-        body: requestBody,
-      }),
+      headers: {
+        "x-api-key": this.apiKey,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
+        "dangerously-allow-developer-user-access": "true",
+      },
+      body: JSON.stringify(requestBody),
       signal,
     });
 

@@ -1,47 +1,154 @@
 "use client";
 
+import { Plus, Terminal as TerminalIcon } from "lucide-react";
+import { motion, useReducedMotion, type Variants } from "motion/react";
+import { useEffect, useRef, useState } from "react";
+import { Button } from "@/components/button";
 import { TerminalPane } from "@/components/terminal/terminal-pane";
 import { useMounted } from "@/hooks/use-mounted";
+import {
+  type GridBreakpoint,
+  getGridBreakpoint,
+  getResponsiveGridConfig,
+} from "@/lib/grid-layout";
+import { terminalLayoutManager } from "@/lib/terminal-layout-manager";
 import { cn } from "@/lib/utils";
 import { useWorkspaceStore } from "@/stores/workspace-store";
 
-function getGridClass(count: number): string {
-  switch (count) {
-    case 1:
-      return "grid-cols-1 grid-rows-1";
-    case 2:
-      return "grid-cols-2 grid-rows-1";
-    case 3:
-      return "grid-cols-3 grid-rows-1";
-    case 4:
-      return "grid-cols-2 grid-rows-2";
-    case 5:
-      return "grid-cols-6 grid-rows-2"; // 6-column grid for 3+2 layout
-    case 6:
-      return "grid-cols-3 grid-rows-2";
-    case 7:
-      return "grid-cols-12 grid-rows-2"; // 12-column grid for 4+3 layout
-    case 8:
-      return "grid-cols-4 grid-rows-2";
-    default:
-      return "grid-cols-1 grid-rows-1";
-  }
-}
+const workspaceVariants: Variants = {
+  active: {
+    opacity: 1,
+    scale: 1,
+    y: 0,
+    transition: {
+      duration: 0.22,
+      ease: [0.16, 1, 0.3, 1], // Calm ease-out expo
+    },
+  },
+  exiting: {
+    opacity: 0,
+    scale: 0.994,
+    y: -3,
+    transition: {
+      duration: 0.18,
+      ease: "easeOut",
+    },
+  },
+  inactive: {
+    opacity: 0,
+    scale: 0.994,
+    y: 3,
+    transition: {
+      duration: 0,
+    },
+  },
+};
 
-function getPaneClass(totalCount: number, index: number): string {
-  if (totalCount === 5) {
-    return index < 3 ? "col-span-2" : "col-span-3";
-  }
-  if (totalCount === 7) {
-    return index < 4 ? "col-span-3" : "col-span-4";
-  }
-  return "";
-}
+const reducedMotionVariants: Variants = {
+  active: { opacity: 1, scale: 1, y: 0, transition: { duration: 0.05 } },
+  exiting: { opacity: 0, scale: 1, y: 0, transition: { duration: 0.05 } },
+  inactive: { opacity: 0, scale: 1, y: 0, transition: { duration: 0 } },
+};
 
 export function TerminalGrid() {
   const mounted = useMounted();
   const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId);
   const workspaces = useWorkspaceStore((s) => s.workspaces);
+  const addTerminal = useWorkspaceStore((s) => s.addTerminal);
+  const prefersReducedMotion = useReducedMotion();
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [breakpoint, setBreakpoint] = useState<GridBreakpoint>("lg");
+
+  // Track previous and exiting workspaces for coordinated cross-workspace transitions
+  const [exitingWorkspaceId, setExitingWorkspaceId] = useState<string | null>(
+    null
+  );
+  const prevActiveIdRef = useRef<string | null>(activeWorkspaceId);
+  const exitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (prevActiveIdRef.current !== activeWorkspaceId) {
+      const previousId = prevActiveIdRef.current;
+      prevActiveIdRef.current = activeWorkspaceId;
+
+      if (previousId && previousId !== activeWorkspaceId) {
+        setExitingWorkspaceId(previousId);
+
+        if (exitTimerRef.current) {
+          clearTimeout(exitTimerRef.current);
+        }
+
+        exitTimerRef.current = setTimeout(() => {
+          setExitingWorkspaceId(null);
+          exitTimerRef.current = null;
+        }, 220);
+      }
+    }
+
+    return () => {
+      if (exitTimerRef.current) {
+        clearTimeout(exitTimerRef.current);
+      }
+    };
+  }, [activeWorkspaceId]);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) {
+      return;
+    }
+
+    setBreakpoint(getGridBreakpoint(el.clientWidth));
+
+    let bpDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const updateBp = (width: number) => {
+      const nextBp = getGridBreakpoint(width);
+      setBreakpoint((prev) => (prev === nextBp ? prev : nextBp));
+    };
+
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry) {
+        if (terminalLayoutManager.isTransitioning()) {
+          return; // Suppress breakpoint changes during active layout animations
+        }
+        if (bpDebounceTimer) {
+          clearTimeout(bpDebounceTimer);
+        }
+        // Debounce breakpoint changes during layout transitions to prevent layout jumps
+        bpDebounceTimer = setTimeout(() => {
+          if (!terminalLayoutManager.isTransitioning()) {
+            updateBp(entry.contentRect.width);
+          }
+        }, 80);
+      }
+    });
+
+    observer.observe(el);
+
+    const onLayoutEnd = () => {
+      if (bpDebounceTimer) {
+        clearTimeout(bpDebounceTimer);
+      }
+      if (el) {
+        updateBp(el.clientWidth);
+      }
+    };
+
+    window.addEventListener("layout-animation-end", onLayoutEnd);
+    window.addEventListener("transitionend", onLayoutEnd);
+
+    return () => {
+      if (bpDebounceTimer) {
+        clearTimeout(bpDebounceTimer);
+      }
+      window.removeEventListener("layout-animation-end", onLayoutEnd);
+      window.removeEventListener("transitionend", onLayoutEnd);
+      observer.disconnect();
+    };
+  }, []);
 
   if (!mounted) {
     return (
@@ -61,47 +168,95 @@ export function TerminalGrid() {
     );
   }
 
+  const activeVariants = prefersReducedMotion
+    ? reducedMotionVariants
+    : workspaceVariants;
+
   return (
-    <div className="relative flex h-full flex-col overflow-visible rounded-lg border border-border/30 bg-[#08080a] shadow-md">
+    <div
+      className="relative flex h-full flex-col overflow-hidden rounded-none border-0 bg-transparent"
+      ref={containerRef}
+    >
       {workspaces.map((ws) => {
         const isActive = ws.id === activeWorkspaceId;
-        const gridClass = getGridClass(ws.panes.length);
+        const isExiting = ws.id === exitingWorkspaceId;
+        const isVisible = isActive || isExiting;
+        const config = getResponsiveGridConfig(ws.panes.length, breakpoint);
+
+        const currentStatus = isActive
+          ? "active"
+          : isExiting
+            ? "exiting"
+            : "inactive";
 
         return (
-          <div
+          <motion.div
+            animate={currentStatus}
+            aria-hidden={!isActive}
             className={cn(
-              "absolute inset-0 grid gap-1.5 p-1.5 transition-all duration-300",
-              gridClass,
-              isActive
-                ? "pointer-events-auto z-10 scale-100 opacity-100"
-                : "pointer-events-none z-0 scale-[0.985] opacity-0"
+              "absolute inset-0 grid gap-1.5 p-1.5 will-change-transform",
+              config.gridClass,
+              config.isScrollable
+                ? "overflow-y-auto overflow-x-hidden"
+                : "overflow-hidden"
             )}
+            initial={false}
             key={ws.id}
             style={{
-              display: isActive ? "grid" : "none",
+              visibility: isVisible ? "visible" : "hidden",
+              pointerEvents: isActive ? "auto" : "none",
+              zIndex: isActive ? 10 : isExiting ? 5 : 0,
             }}
+            variants={activeVariants}
           >
-            {ws.panes.map((pane, index) => (
-              <div
-                className={cn(
-                  "h-full w-full",
-                  getPaneClass(ws.panes.length, index)
-                )}
-                key={pane.id}
-              >
-                <TerminalPane
-                  autoCommand={ws.autoCommand}
-                  cwd={ws.directory}
-                  directory={ws.directory}
-                  id={pane.id}
-                  index={index}
-                  isActiveWorkspace={isActive}
-                  name={pane.name}
-                  title={`Terminal ${index + 1}`}
-                />
+            {ws.panes.length === 0 ? (
+              <div className="flex h-full w-full flex-col items-center justify-center gap-3 rounded-lg border border-border/20 border-dashed bg-muted/5 p-6 text-center">
+                <div className="flex size-12 items-center justify-center rounded-2xl border border-border/30 bg-muted/40 text-muted-foreground/60 shadow-sm">
+                  <TerminalIcon className="size-6" />
+                </div>
+                <div className="space-y-1">
+                  <p className="font-semibold text-foreground text-sm">
+                    No active terminals
+                  </p>
+                  <p className="max-w-xs text-muted-foreground text-xs leading-relaxed">
+                    All terminal sessions in this workspace have been closed.
+                  </p>
+                </div>
+                <Button
+                  className="mt-1 gap-1.5 shadow-sm"
+                  onClick={() => addTerminal(ws.id)}
+                  size="sm"
+                  variant="outline"
+                >
+                  <Plus className="size-3.5" />
+                  Add Terminal
+                </Button>
               </div>
-            ))}
-          </div>
+            ) : (
+              ws.panes.map((pane, index) => (
+                <div
+                  className={cn(
+                    "h-full w-full min-w-0",
+                    config.isScrollable ? "min-h-[200px]" : "min-h-0",
+                    config.getPaneClass(index)
+                  )}
+                  key={pane.id}
+                >
+                  <TerminalPane
+                    autoCommand={ws.autoCommand}
+                    cwd={ws.directory}
+                    directory={ws.directory}
+                    id={pane.id}
+                    index={index}
+                    isActiveWorkspace={isActive}
+                    name={pane.name}
+                    title={`Terminal ${index + 1}`}
+                    workspaceId={ws.id}
+                  />
+                </div>
+              ))
+            )}
+          </motion.div>
         );
       })}
     </div>

@@ -61,18 +61,14 @@ export function SecondaryNav({
                 <SidebarMenuButton asChild={true} isActive={active} size="sm">
                   <LinkComponent
                     data-active={active}
-                    data-tooltip={t(
-                      item.translationKey as Parameters<typeof t>[0]
-                    )}
+                    data-tooltip={t(item.translationKey as any)}
                     href={item.url}
                     onClick={handleLinkClick}
                     rel={item.external ? "noopener noreferrer" : undefined}
                     target={item.external ? "_blank" : undefined}
                   >
                     <item.icon />
-                    <span>
-                      {t(item.translationKey as Parameters<typeof t>[0])}
-                    </span>
+                    <span>{t(item.translationKey as any)}</span>
                   </LinkComponent>
                 </SidebarMenuButton>
               </SidebarMenuItem>

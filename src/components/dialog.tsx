@@ -59,10 +59,15 @@ function DialogContent({
       <DialogOverlay />
       <DialogPrimitive.Content
         className={cn(
-          "data-open:fade-in-0 data-open:zoom-in-95 data-closed:fade-out-0 data-closed:zoom-out-95 fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-6 rounded-xl bg-popover p-6 text-popover-foreground text-sm outline-none ring-1 ring-foreground/10 duration-100 data-closed:animate-out data-open:animate-in sm:max-w-md",
+          "relative fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-6 rounded-[26px] border border-white/30 bg-[#070512]/85 p-6 text-popover-foreground text-sm shadow-[0_32px_80px_rgba(0,0,0,0.8),inset_0_1.5px_2px_rgba(255,255,255,0.5)] backdrop-blur-[48px] outline-none duration-150 data-open:fade-in-0 data-open:zoom-in-95 data-closed:fade-out-0 data-closed:zoom-out-95 data-closed:animate-out data-open:animate-in sm:max-w-md overflow-hidden",
           className
         )}
         data-slot="dialog-content"
+        style={{
+          backdropFilter: "blur(48px) saturate(200%)",
+          WebkitBackdropFilter: "blur(48px) saturate(200%)",
+          ...props.style,
+        }}
         {...props}
       >
         {children}

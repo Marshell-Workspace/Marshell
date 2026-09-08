@@ -16,6 +16,7 @@ export interface LiquidGlassCardProps {
   expandedWidth?: string;
   glowIntensity?: "none" | "xs" | "sm" | "md" | "lg" | "xl";
   height?: string;
+  hoverScale?: boolean;
   shadowIntensity?: "none" | "xs" | "sm" | "md" | "lg" | "xl";
   width?: string;
 }
@@ -33,9 +34,11 @@ export const LiquidGlassCard = ({
   borderRadius = "28px",
   glowIntensity = "sm",
   shadowIntensity = "md",
+  hoverScale,
   ...props
 }: LiquidGlassCardProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const shouldScale = hoverScale ?? (draggable || expandable);
 
   const handleToggleExpansion = (e: React.MouseEvent<HTMLElement>) => {
     if (!expandable) {
@@ -114,8 +117,8 @@ export const LiquidGlassCard = ({
             ? { bounceStiffness: 300, bounceDamping: 10, power: 0.3 }
             : undefined,
           whileDrag: draggable ? { scale: 1.02 } : undefined,
-          whileHover: { scale: 1.01 },
-          whileTap: { scale: 0.98 },
+          whileHover: shouldScale ? { scale: 1.01 } : undefined,
+          whileTap: shouldScale ? { scale: 0.98 } : undefined,
         }
       : {};
 
@@ -149,7 +152,7 @@ export const LiquidGlassCard = ({
       </svg>
       <MotionComponent
         className={cn(
-          `relative ${draggable ? "cursor-grab active:cursor-grabbing" : ""} ${expandable ? "cursor-pointer" : ""}`,
+          `relative overflow-hidden ${draggable ? "cursor-grab active:cursor-grabbing" : ""} ${expandable ? "cursor-pointer" : ""}`,
           className
         )}
         style={{

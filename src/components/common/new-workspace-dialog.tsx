@@ -8,7 +8,7 @@ import {
   Terminal,
 } from "lucide-react";
 import { motion } from "motion/react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/button";
 import {
@@ -43,6 +43,7 @@ const LAYOUTS: Record<number, string> = {
 };
 
 const PATH_SEPARATOR_REGEX = /[/\\]/;
+const EMPTY_RECENT_DIRECTORIES: string[] = [];
 
 const _SUGGESTIONS = [
   "E:\\Hyperion",
@@ -89,6 +90,15 @@ const AI_AGENTS: AIAgent[] = [
     description: "Decentralized developer terminal agent client.",
     command: "opencode",
     installCommand: "npm install -g @opencode/cli",
+    status: "Not Installed",
+    action: "Install",
+  },
+  {
+    name: "Inception Mercury",
+    description:
+      "High-throughput diffusion LLM agent powered by Inception Labs.",
+    command: "mercury",
+    installCommand: "pip install inception-cli",
     status: "Not Installed",
     action: "Install",
   },
@@ -281,15 +291,15 @@ function getGridClass(count: number): string {
     case 2:
       return "grid-cols-2 grid-rows-1";
     case 3:
-      return "grid-cols-3 grid-rows-1";
+      return "grid-cols-2 grid-rows-2"; // 2 top + 1 full-width bottom
     case 4:
       return "grid-cols-2 grid-rows-2";
     case 5:
-      return "grid-cols-6 grid-rows-2"; // 6 cols for symmetrical 3+2
+      return "grid-cols-2 grid-rows-3"; // 2 top + 2 middle + 1 full-width bottom
     case 6:
       return "grid-cols-3 grid-rows-2";
     case 7:
-      return "grid-cols-12 grid-rows-2"; // 12 cols for symmetrical 4+3
+      return "grid-cols-3 grid-rows-3"; // 3 top + 3 middle + 1 full-width bottom
     case 8:
       return "grid-cols-4 grid-rows-2";
     default:
@@ -298,11 +308,14 @@ function getGridClass(count: number): string {
 }
 
 function getPaneClass(totalCount: number, index: number): string {
+  if (totalCount === 3) {
+    return index === 2 ? "col-span-2" : "col-span-1";
+  }
   if (totalCount === 5) {
-    return index < 3 ? "col-span-2" : "col-span-3";
+    return index === 4 ? "col-span-2" : "col-span-1";
   }
   if (totalCount === 7) {
-    return index < 4 ? "col-span-3" : "col-span-4";
+    return index === 6 ? "col-span-3" : "col-span-1";
   }
   return "";
 }
@@ -321,12 +334,10 @@ function LayoutPreview({
       : "border-muted-foreground/30 bg-muted-foreground/5 group-hover:border-muted-foreground/50"
   );
 
-  const getBoxes = (n: number) => {
-    return Array.from({ length: n }, (_, i) => (
-      // biome-ignore lint/suspicious/noArrayIndexKey: static preview
+  const getBoxes = (n: number) =>
+    Array.from({ length: n }, (_, i) => (
       <div className={cn("size-2", boxClass)} key={i} />
     ));
-  };
 
   switch (count) {
     case 1:
@@ -334,7 +345,13 @@ function LayoutPreview({
     case 2:
       return <div className="grid grid-cols-2 gap-0.5">{getBoxes(2)}</div>;
     case 3:
-      return <div className="grid grid-cols-3 gap-0.5">{getBoxes(3)}</div>;
+      return (
+        <div className="grid w-[26px] grid-cols-2 grid-rows-2 gap-0.5">
+          <div className={cn("h-2", boxClass)} />
+          <div className={cn("h-2", boxClass)} />
+          <div className={cn("col-span-2 h-2", boxClass)} />
+        </div>
+      );
     case 4:
       return (
         <div className="grid grid-cols-2 grid-rows-2 gap-0.5">
@@ -343,12 +360,12 @@ function LayoutPreview({
       );
     case 5:
       return (
-        <div className="grid w-[26px] grid-cols-6 gap-0.5">
-          <div className={cn("col-span-2 h-2", boxClass)} />
-          <div className={cn("col-span-2 h-2", boxClass)} />
-          <div className={cn("col-span-2 h-2", boxClass)} />
-          <div className={cn("col-span-3 h-2", boxClass)} />
-          <div className={cn("col-span-3 h-2", boxClass)} />
+        <div className="grid w-[26px] grid-cols-2 grid-rows-3 gap-0.5">
+          <div className={cn("h-1.5", boxClass)} />
+          <div className={cn("h-1.5", boxClass)} />
+          <div className={cn("h-1.5", boxClass)} />
+          <div className={cn("h-1.5", boxClass)} />
+          <div className={cn("col-span-2 h-1.5", boxClass)} />
         </div>
       );
     case 6:
@@ -359,14 +376,14 @@ function LayoutPreview({
       );
     case 7:
       return (
-        <div className="grid w-[26px] grid-cols-12 gap-0.5">
-          <div className={cn("col-span-3 h-2", boxClass)} />
-          <div className={cn("col-span-3 h-2", boxClass)} />
-          <div className={cn("col-span-3 h-2", boxClass)} />
-          <div className={cn("col-span-3 h-2", boxClass)} />
-          <div className={cn("col-span-4 h-2", boxClass)} />
-          <div className={cn("col-span-4 h-2", boxClass)} />
-          <div className={cn("col-span-4 h-2", boxClass)} />
+        <div className="grid w-[26px] grid-cols-3 grid-rows-3 gap-0.5">
+          <div className={cn("h-1.5", boxClass)} />
+          <div className={cn("h-1.5", boxClass)} />
+          <div className={cn("h-1.5", boxClass)} />
+          <div className={cn("h-1.5", boxClass)} />
+          <div className={cn("h-1.5", boxClass)} />
+          <div className={cn("h-1.5", boxClass)} />
+          <div className={cn("col-span-3 h-1.5", boxClass)} />
         </div>
       );
     case 8:
@@ -387,30 +404,35 @@ function WorkspaceLivePreview({
   count: number;
   autoCommand: string;
 }) {
-  const [typedText, setTypedText] = useState("");
-  const targetText = autoCommand || "npm run dev";
+  const [typedPlaceholder, setTypedPlaceholder] = useState("");
+  const placeholderText = "npm run dev";
 
   useEffect(() => {
+    if (autoCommand) {
+      return;
+    }
     let isCancelled = false;
-    setTypedText("");
+    setTypedPlaceholder("");
     let i = 0;
     const interval = setInterval(() => {
       if (isCancelled) {
         return;
       }
-      if (i < targetText.length) {
-        setTypedText((prev) => prev + targetText.charAt(i));
+      if (i < placeholderText.length) {
+        setTypedPlaceholder(placeholderText.slice(0, i + 1));
         i++;
       } else {
         clearInterval(interval);
       }
-    }, 25);
+    }, 35);
 
     return () => {
       isCancelled = true;
       clearInterval(interval);
     };
-  }, [targetText]);
+  }, [autoCommand]);
+
+  const displayText = autoCommand || typedPlaceholder;
 
   const getBoxes = (n: number) =>
     Array.from({ length: n }, (_, i) => {
@@ -426,7 +448,6 @@ function WorkspaceLivePreview({
               : "border-border/20"
           )}
           initial={{ opacity: 0, scale: 0.95 }}
-          // biome-ignore lint/suspicious/noArrayIndexKey: static preview layout grid keys
           key={i}
           transition={{
             type: "spring",
@@ -457,10 +478,10 @@ function WorkspaceLivePreview({
                   <span className="shrink-0 font-bold text-emerald-500/80">
                     hyperion@dev:~$
                   </span>
-                  <span className="truncate font-mono font-semibold text-foreground tracking-wide">
-                    {typedText}
-                    <span className="ml-0.5 inline-block h-2.5 w-1 animate-pulse bg-primary align-middle" />
+                  <span className="min-w-0 flex-1 truncate font-mono font-semibold text-foreground tracking-wide">
+                    {displayText}
                   </span>
+                  <span className="inline-block h-2.5 w-1 shrink-0 animate-pulse bg-primary align-middle" />
                 </div>
                 <div className="min-w-0 space-y-1 overflow-hidden text-[7px] text-muted-foreground/45">
                   {autoCommand ? (
@@ -528,17 +549,19 @@ export function NewWorkspaceDialog({
   onOpenChange,
   onCreated,
 }: NewWorkspaceDialogProps) {
-  const {
-    createWorkspace,
-    workspaces,
-    recentDirectories = [],
-  } = useWorkspaceStore();
+  const createWorkspace = useWorkspaceStore((s) => s.createWorkspace);
+  const workspaces = useWorkspaceStore((s) => s.workspaces);
+  const recentDirectories =
+    useWorkspaceStore((s) => s.recentDirectories) ?? EMPTY_RECENT_DIRECTORIES;
+
   const [name, setName] = useState("");
   const [terminalCount, setTerminalCount] = useState(4);
   const [directory, setDirectory] = useState("E:\\Hyperion");
   const [autoCommand, setAutoCommand] = useState("");
   const [dragActive, setDragActive] = useState(false);
   const [_copiedCmd, setCopiedCmd] = useState<string | null>(null);
+
+  const prevOpenRef = useRef(false);
 
   const handleCopy = async (cmd: string) => {
     try {
@@ -552,12 +575,13 @@ export function NewWorkspaceDialog({
   };
 
   useEffect(() => {
-    if (open) {
+    if (open && !prevOpenRef.current) {
       setName(`Workspace ${workspaces.length + 1}`);
       setTerminalCount(4);
       setDirectory(recentDirectories[0] || "");
       setAutoCommand("");
     }
+    prevOpenRef.current = open;
   }, [open, workspaces.length, recentDirectories]);
 
   const handleDrag = (e: React.DragEvent) => {
@@ -663,8 +687,7 @@ export function NewWorkspaceDialog({
                 <Label className="select-none font-bold text-[10px] text-muted-foreground/80 uppercase tracking-wider">
                   Working Directory
                 </Label>
-                {/* biome-ignore lint/a11y/noStaticElementInteractions: drag-and-drop region */}
-                {/* biome-ignore lint/a11y/noNoninteractiveElementInteractions: drag-and-drop region */}
+
                 <div
                   className={cn(
                     "relative flex items-center rounded-lg border transition-all duration-300",
@@ -759,22 +782,28 @@ export function NewWorkspaceDialog({
             </div>
 
             {/* Right column */}
-            <div className="flex flex-col justify-between space-y-3 border-border/20 border-l pl-5 md:col-span-5">
+            <div className="flex flex-col justify-between space-y-3 border-border/20 border-l pl-4 md:col-span-5">
               <div className="space-y-3">
                 {/* Auto Command Configuration */}
                 <div className="space-y-1.5">
-                  <Label className="flex select-none items-center gap-1.5 font-bold text-[10px] text-muted-foreground/80 uppercase tracking-wider">
+                  <Label
+                    className="flex select-none items-center gap-1.5 font-bold text-[10px] text-muted-foreground/80 uppercase tracking-wider"
+                    htmlFor="ws-auto-command"
+                  >
                     <Terminal className="size-3 text-muted-foreground/80" />{" "}
                     Auto-run Command
                   </Label>
-                  <div className="flex w-full items-center gap-2 rounded-lg border border-border/40 bg-muted/15 px-2.5 py-0.5 transition-colors focus-within:border-primary/45">
-                    <Input
-                      className="h-8.5 flex-1 border-transparent bg-transparent p-0 font-mono text-foreground text-xs focus-visible:ring-0 focus-visible:ring-offset-0"
-                      onChange={(e) => setAutoCommand(e.target.value)}
-                      placeholder="e.g. npm run dev"
-                      value={autoCommand}
-                    />
-                  </div>
+                  <Input
+                    autoCapitalize="off"
+                    autoComplete="off"
+                    autoCorrect="off"
+                    className="h-9.5 w-full border-border/40 bg-muted/20 font-mono text-foreground text-xs tracking-wide transition-all focus-visible:border-primary/50 focus-visible:ring-1 focus-visible:ring-primary/20"
+                    id="ws-auto-command"
+                    onChange={(e) => setAutoCommand(e.target.value)}
+                    placeholder="e.g. npm run dev"
+                    spellCheck={false}
+                    value={autoCommand}
+                  />
                   {/* Command Shortcuts */}
                   <div className="flex flex-wrap items-center gap-1.5 pt-1">
                     {[
@@ -828,43 +857,42 @@ export function NewWorkspaceDialog({
                         return (
                           <div
                             className={cn(
-                              "group/card flex items-center justify-between rounded-lg border px-3 py-1.5 transition-all duration-300",
+                              "group/card flex items-center justify-between gap-2 rounded-lg border px-2.5 py-1.5 transition-all duration-300",
                               isSelected
                                 ? "border-primary/45 bg-primary/[0.04]"
                                 : "border-border/20 bg-muted/15 hover:border-border/50 hover:bg-background/40"
                             )}
                             key={agent.name}
                           >
-                            <div className="min-w-0 flex-1 pr-3">
-                              <div className="flex items-center gap-2">
+                            <div className="min-w-0 flex-1 pr-1">
+                              <div className="flex items-center gap-1.5">
                                 <span className="font-semibold text-foreground text-xs tracking-wide">
                                   {agent.name}
                                 </span>
                                 {isInstalled ? (
-                                  <span className="rounded border border-emerald-500/10 bg-emerald-500/5 px-1.5 py-0.5 font-bold text-[8px] text-emerald-500/80">
+                                  <span className="rounded border border-emerald-500/10 bg-emerald-500/5 px-1 py-0.5 font-bold text-[7.5px] text-emerald-500/80">
                                     Installed
                                   </span>
                                 ) : (
-                                  <span className="rounded border border-border/10 bg-muted/10 px-1.5 py-0.5 font-bold text-[8px] text-muted-foreground/60">
+                                  <span className="rounded border border-border/10 bg-muted/10 px-1 py-0.5 font-bold text-[7.5px] text-muted-foreground/60">
                                     Not Installed
                                   </span>
                                 )}
                               </div>
                               <p
-                                className="mt-0.5 truncate text-[10px] text-muted-foreground/50"
+                                className="mt-0.5 truncate text-[9.5px] text-muted-foreground/50"
                                 title={agent.description}
                               >
                                 {agent.description}
                               </p>
                             </div>
 
-                            <div className="flex shrink-0 items-center gap-1.5">
+                            <div className="flex shrink-0 items-center">
                               <Button
                                 className={cn(
-                                  "h-6 px-2.5 font-bold text-[9px] uppercase transition-all duration-200",
-                                  isSelected
-                                    ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                                    : "border border-border/30 bg-background/50 hover:border-primary/40 hover:bg-primary/5 hover:text-primary"
+                                  "h-6 px-2 font-bold text-[8.5px] uppercase transition-all duration-200 text-white bg-black border border-white/25 hover:bg-black/80 hover:border-white/40 hover:text-white shadow-xs",
+                                  isSelected &&
+                                    "border-white/50 bg-black font-extrabold"
                                 )}
                                 onClick={() => {
                                   if (isInstalled) {
@@ -903,41 +931,41 @@ export function NewWorkspaceDialog({
                             const isUpdate = tool.status === "Update Available";
                             return (
                               <div
-                                className="group/card flex items-center justify-between rounded-lg border border-border/20 bg-muted/15 px-3 py-1.5 transition-all duration-300 hover:border-border/50 hover:bg-background/40"
+                                className="group/card flex items-center justify-between gap-2 rounded-lg border border-border/20 bg-muted/15 px-2.5 py-1.5 transition-all duration-300 hover:border-border/50 hover:bg-background/40"
                                 key={tool.name}
                               >
-                                <div className="min-w-0 flex-1 pr-3">
-                                  <div className="flex items-center gap-2">
+                                <div className="min-w-0 flex-1 pr-1">
+                                  <div className="flex items-center gap-1.5">
                                     <span className="font-semibold text-foreground text-xs tracking-wide">
                                       {tool.name}
                                     </span>
                                     {isInstalled && (
-                                      <span className="rounded border border-emerald-500/10 bg-emerald-500/5 px-1.5 py-0.5 font-bold text-[8px] text-emerald-500/80">
+                                      <span className="rounded border border-emerald-500/10 bg-emerald-500/5 px-1 py-0.5 font-bold text-[7.5px] text-emerald-500/80">
                                         Installed
                                       </span>
                                     )}
                                     {isUpdate && (
-                                      <span className="rounded border border-amber-500/10 bg-amber-500/5 px-1.5 py-0.5 font-bold text-[8px] text-amber-500/80">
+                                      <span className="rounded border border-amber-500/10 bg-amber-500/5 px-1 py-0.5 font-bold text-[7.5px] text-amber-500/80">
                                         Update Available
                                       </span>
                                     )}
                                     {!(isInstalled || isUpdate) && (
-                                      <span className="rounded border border-border/10 bg-muted/10 px-1.5 py-0.5 font-bold text-[8px] text-muted-foreground/60">
+                                      <span className="rounded border border-border/10 bg-muted/10 px-1 py-0.5 font-bold text-[7.5px] text-muted-foreground/60">
                                         Not Installed
                                       </span>
                                     )}
                                   </div>
                                   <p
-                                    className="mt-0.5 truncate text-[10px] text-muted-foreground/50"
+                                    className="mt-0.5 truncate text-[9.5px] text-muted-foreground/50"
                                     title={tool.description}
                                   >
                                     {tool.description}
                                   </p>
                                 </div>
 
-                                <div className="flex shrink-0 items-center gap-1.5">
+                                <div className="flex shrink-0 items-center">
                                   <Button
-                                    className="h-6 border border-border/30 bg-background/50 px-2.5 font-bold text-[9px] uppercase transition-all duration-200 hover:border-primary/45 hover:bg-primary/5 hover:text-primary"
+                                    className="h-6 border border-white/25 bg-black px-2 font-bold text-[8.5px] uppercase transition-all duration-200 text-white hover:border-white/40 hover:bg-black/80 hover:text-white"
                                     onClick={() =>
                                       handleCopy(tool.installCommand)
                                     }
@@ -1007,7 +1035,7 @@ export function NewWorkspaceDialog({
             Cancel
           </Button>
           <Button
-            className="h-8.5 px-6 font-bold text-xs shadow-lg shadow-primary/10 transition-all hover:scale-[1.01] hover:shadow-primary/20"
+            className="h-8.5 px-6 font-bold text-xs text-white hover:text-white bg-black border border-white/25 hover:bg-black/90 hover:border-white/40 shadow-lg transition-all hover:scale-[1.01]"
             disabled={!name.trim()}
             onClick={handleCreate}
             type="button"

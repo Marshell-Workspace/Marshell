@@ -82,7 +82,7 @@ export function MainNav({
                 <SidebarMenuButton
                   asChild={true}
                   isActive={active}
-                  tooltip={t(item.translationKey as Parameters<typeof t>[0])}
+                  tooltip={t(item.translationKey as any)}
                 >
                   <LinkComponent
                     data-active={active}
@@ -90,9 +90,7 @@ export function MainNav({
                     onClick={handleLinkClick}
                   >
                     <item.icon />
-                    <span>
-                      {t(item.translationKey as Parameters<typeof t>[0])}
-                    </span>
+                    <span>{t(item.translationKey as any)}</span>
                   </LinkComponent>
                 </SidebarMenuButton>
                 {item.items?.length ? (
@@ -120,11 +118,7 @@ export function MainNav({
                                   onClick={handleLinkClick}
                                 >
                                   <span>
-                                    {t(
-                                      subItem.translationKey as Parameters<
-                                        typeof t
-                                      >[0]
-                                    )}
+                                    {t(subItem.translationKey as any)}
                                   </span>
                                 </LinkComponent>
                               </SidebarMenuSubButton>

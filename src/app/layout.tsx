@@ -14,8 +14,32 @@ const fontDisplay = Lora({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(siteConfig.links.website),
   title: siteConfig.name,
   description: siteConfig.description,
+  icons: {
+    icon: [
+      { url: "/favicon.ico" },
+      { url: "/logo-64.png", sizes: "64x64", type: "image/png" },
+      { url: "/logo-128.png", sizes: "128x128", type: "image/png" },
+      { url: "/logo.png", sizes: "512x512", type: "image/png" },
+    ],
+    shortcut: "/favicon.ico",
+    apple: [{ url: "/logo.png", sizes: "512x512", type: "image/png" }],
+  },
+  openGraph: {
+    type: "website",
+    siteName: siteConfig.name,
+    title: siteConfig.name,
+    description: siteConfig.description,
+    images: ["/opengraph-image.png"],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: siteConfig.name,
+    description: siteConfig.description,
+    images: ["/twitter-image.png"],
+  },
 };
 
 export const viewport: Viewport = {

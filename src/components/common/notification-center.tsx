@@ -10,10 +10,10 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/empty";
-import { LiquidGlassCard } from "@/components/liquid-glass-card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/popover";
 import { ScrollArea } from "@/components/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/tabs";
+import { LiquidGlassCard } from "@/components/ui/liquid-glass-card";
 import {
   getNotificationIcon,
   type NotificationItem,
@@ -245,7 +245,7 @@ function NotificationList({
   // Pure translation helper: checks known i18n keys first to prevent missing message console warnings
   const renderText = (textKeyOrRaw: string) => {
     if (KNOWN_NOTIFICATION_I18N_KEYS.has(textKeyOrRaw)) {
-      return t(textKeyOrRaw as any);
+      return t(textKeyOrRaw as never);
     }
     return textKeyOrRaw;
   };
@@ -316,7 +316,7 @@ function NotificationList({
 
             {/* Notification description text */}
             <button
-              className="text-left w-full cursor-cursor"
+              className="text-left w-full cursor-pointer"
               onClick={() => onMarkRead(item.id)}
               type="button"
             >

@@ -1,12 +1,33 @@
-// This file is not used for Tauri static export
-// Messages are loaded client-side in layout.tsx via NextIntlClientProvider
-// with locale and messages props directly passed from the layout
+import { messages } from "@workspace/i18n";
+import { routing } from "@workspace/i18n/routing";
+import { getRequestConfig } from "@workspace/i18n/server";
 
-import { routing } from "@/i18n/routing";
-// Keeping this file for compatibility, but it won't be called
-import { getRequestConfig } from "@/i18n/server";
+export default getRequestConfig(async (params) => {
+  let locale: string = routing.defaultLocale;
+  try {
+    if (params?.requestLocale) {
+      const requested = await Promise.race([
+        params.requestLocale,
+        new Promise<string | undefined>((resolve) =>
+          setTimeout(() => resolve(undefined), 50)
+        ),
+      ]);
+      if (
+        requested &&
+        routing.locales.includes(requested as (typeof routing.locales)[number])
+      ) {
+        locale = requested;
+      }
+    }
+  } catch {
+    locale = routing.defaultLocale;
+  }
 
-export default getRequestConfig(async () => ({
-  locale: routing.defaultLocale,
-  messages: {},
-}));
+  return {
+    locale,
+    messages:
+      messages[locale as keyof typeof messages] ??
+      messages[routing.defaultLocale] ??
+      {},
+  };
+});

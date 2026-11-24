@@ -1,0 +1,547 @@
+/**
+ * tour.css — Tour layer keyframes, @property definitions, and motion tokens.
+ *
+ * Follows Tailwind v4 convention (co-located, imported in tutorial-overlay.tsx).
+ * All keyframes are guarded with @media (prefers-reduced-motion: no-preference).
+ */
+
+@font-face {
+  font-family: "Great Vibes";
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url("/fonts/great-vibes/GreatVibes-Regular.ttf") format("truetype");
+}
+
+.font-script-great-vibes {
+  font-family:
+    "Great Vibes", var(--font-script-loaded, "Sacramento"), cursive, sans-serif;
+}
+
+.font-script-sacramento {
+  font-family: var(--font-script-loaded, "Sacramento"), cursive, sans-serif;
+}
+
+.font-script-yellowtail {
+  font-family: "Yellowtail", cursive, sans-serif;
+}
+
+.font-script-damion {
+  font-family: "Damion", cursive, sans-serif;
+}
+
+/* ── Handoff into app: real sidebar logo hidden during flight ─────────────── */
+[data-tour-logo-flying] [data-tour-logo-target] {
+  opacity: 0 !important;
+}
+
+/* ── Motion tokens ─────────────────────────────────────────────────────────── */
+:root {
+  --tour-duration-fast: 120ms;
+  --tour-duration-normal: 220ms;
+  --tour-duration-slow: 420ms;
+  --tour-ease-hud: cubic-bezier(0.16, 1, 0.3, 1);
+  --tour-spring-hud: cubic-bezier(0.34, 1.4, 0.64, 1);
+  --ease-out-tour: var(--tour-ease-hud);
+  --ease-spring-tour: var(--tour-spring-hud);
+}
+
+/* ── Apple-inspired Tour Card Design Tokens ───────────────────────────────── */
+:root {
+  --tour-accent: var(--primary, #2563eb);
+  --tour-card-width: 320px;
+  --tour-card-bg: rgba(28, 28, 32, 0.82);
+  --tour-card-border: rgba(255, 255, 255, 0.1);
+  --tour-card-radius: 14px;
+  --tour-card-shadow:
+    0 16px 36px -4px rgba(0, 0, 0, 0.5), 0 4px 12px -2px rgba(0, 0, 0, 0.3);
+  --tour-title-color: rgba(255, 255, 255, 0.95);
+  --tour-body-color: rgba(255, 255, 255, 0.65);
+  --tour-muted-color: rgba(255, 255, 255, 0.5);
+  --tour-track-bg: rgba(255, 255, 255, 0.12);
+  --tour-btn-secondary-bg: rgba(255, 255, 255, 0.08);
+  --tour-btn-secondary-hover: rgba(255, 255, 255, 0.12);
+  --tour-skip-color: rgba(255, 255, 255, 0.55);
+  --tour-skip-hover: rgba(255, 255, 255, 0.85);
+  --tour-btn-radius: 10px;
+  --tour-btn-height: 34px;
+}
+
+/* ── Tour Theme Tokens: Dark Theme (Default) ───────────────────────────────── */
+:root,
+.dark,
+[data-theme="dark"] {
+  --tour-accent: var(--primary, #2563eb);
+  --tour-accent-glow: color-mix(in oklab, var(--tour-accent) 42%, transparent);
+  --tour-focus-ring: var(--tour-accent);
+
+  /* Apple-inspired translucent blurred card */
+  --tour-card-bg: rgba(28, 28, 32, 0.82);
+  --tour-card-border: rgba(255, 255, 255, 0.1);
+  --tour-card-shadow:
+    0 16px 36px -4px rgba(0, 0, 0, 0.5), 0 4px 12px -2px rgba(0, 0, 0, 0.3);
+
+  --tour-surface: color-mix(in oklab, var(--card, #12141a) 85%, #05070c);
+  --tour-surface-raised: color-mix(
+    in oklab,
+    var(--tour-surface) 84%,
+    white 16%
+  );
+  --tour-border: color-mix(
+    in oklab,
+    var(--border, #282832) 70%,
+    var(--tour-accent) 30%
+  );
+
+  /* High-contrast crisp typography */
+  --tour-text: var(--foreground, #f4f4f5);
+  --tour-text-muted: color-mix(
+    in oklab,
+    var(--foreground, #f4f4f5) 65%,
+    transparent
+  );
+
+  /* Tactical viewport dim & scanning */
+  --tour-dim: rgba(5, 7, 12, 0.3);
+  --tour-scan: color-mix(in oklab, var(--tour-accent) 18%, transparent);
+
+  /* Telemetric indicators */
+  --tour-success: #10b981;
+  --tour-warning: #f59e0b;
+}
+
+/* ── Tour Theme Tokens: Light Theme (Crisp technical paper HUD) ────────────── */
+:root:not(.dark),
+[data-theme="light"],
+.light {
+  --tour-accent: var(--accent-ink, var(--primary, #1d4ed8));
+  /* Inverted glow logic: high-precision crisp border & soft tactical shadow */
+  --tour-accent-glow: color-mix(
+    in oklab,
+    var(--tour-accent) 12%,
+    rgba(0, 0, 0, 0.08)
+  );
+  --tour-focus-ring: #1d1d1f;
+
+  /* Apple-inspired translucent blurred card */
+  --tour-card-bg: rgba(255, 255, 255, 0.86);
+  --tour-card-border: rgba(0, 0, 0, 0.08);
+  --tour-card-shadow:
+    0 16px 36px -4px rgba(0, 0, 0, 0.12), 0 4px 12px -2px rgba(0, 0, 0, 0.06);
+
+  --tour-surface: #ffffff;
+  --tour-surface-raised: #ffffff;
+  --tour-border: rgba(0, 0, 0, 0.08);
+
+  /* Deep ink text for pristine contrast */
+  --tour-text: #1d1d1f;
+  --tour-text-muted: rgba(60, 60, 67, 0.7);
+
+  /* Crisp tactical dimming & scan */
+  --tour-dim: rgba(15, 23, 42, 0.18);
+  --tour-scan: color-mix(in oklab, var(--tour-accent) 10%, transparent);
+
+  /* Telemetric indicators calibrated for light backgrounds */
+  --tour-success: #059669;
+  --tour-warning: #d97706;
+}
+
+[data-theme="light"] .tour-welcome-logo,
+[data-theme="light"] .tour-completion-logo {
+  content: url("/main_logo_light_256.webp");
+}
+
+[data-theme="light"] .tour-flight-logo {
+  content: url("/main_logo_light_512.webp");
+}
+
+/* ── @property for rotating conic border (welcome card) ────────────────────── */
+@property --tour-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+/* ── Keyframes ─────────────────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Reusable Named Preset: Lock-on reticle snap */
+  @keyframes tour-lock-on {
+    0% {
+      transform: scale(1.18);
+      opacity: 0;
+    }
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  /* Reusable Named Preset: Boot sweep */
+  @keyframes tour-boot-sweep {
+    0% {
+      transform: translateY(-100%);
+      opacity: 0;
+    }
+    15% {
+      opacity: 1;
+    }
+    85% {
+      opacity: 1;
+    }
+    100% {
+      transform: translateY(200%);
+      opacity: 0;
+    }
+  }
+
+  /* Reusable Named Preset: Pulse wave */
+  @keyframes tour-pulse-wave {
+    0% {
+      transform: scale(0.9);
+      opacity: 0.8;
+    }
+    100% {
+      transform: scale(1.6);
+      opacity: 0;
+    }
+  }
+
+  /* Welcome: glow breathe */
+  @keyframes tour-glow-breathe {
+    0%,
+    100% {
+      opacity: 0.55;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.9;
+      transform: scale(1.06);
+    }
+  }
+
+  /* Welcome: orbit node pop */
+  @keyframes tour-node-pop {
+    0% {
+      transform: scale(0) rotate(-40deg);
+      opacity: 0;
+    }
+    70% {
+      transform: scale(1.15) rotate(4deg);
+      opacity: 1;
+    }
+    100% {
+      transform: scale(1) rotate(0deg);
+      opacity: 1;
+    }
+  }
+
+  /* Welcome: title word reveal (mask upward) */
+  @keyframes tour-word-reveal {
+    from {
+      clip-path: inset(0 0 100% 0);
+      transform: translateY(6px);
+      opacity: 0;
+    }
+    to {
+      clip-path: inset(0 0 0% 0);
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  /* Welcome: logo sheen sweep */
+  @keyframes tour-sheen {
+    0% {
+      transform: translateX(-150%) skewX(-15deg);
+      opacity: 0;
+    }
+    20% {
+      opacity: 0.6;
+    }
+    100% {
+      transform: translateX(250%) skewX(-15deg);
+      opacity: 0;
+    }
+  }
+
+  /* Welcome: conic border spin */
+  @keyframes tour-conic-spin {
+    to {
+      --tour-angle: 360deg;
+    }
+  }
+
+  /* Chip highlight cycle */
+  @keyframes tour-chip-highlight {
+    0%,
+    100% {
+      background-color: color-mix(
+        in oklab,
+        var(--tour-accent) 12%,
+        transparent
+      );
+    }
+    50% {
+      background-color: color-mix(
+        in oklab,
+        var(--tour-accent) 24%,
+        transparent
+      );
+    }
+  }
+
+  /* Reticle lock-on bracket */
+  @keyframes tour-bracket-lock {
+    0% {
+      transform: translate(var(--bracket-dx, 24px), var(--bracket-dy, 24px));
+      opacity: 0;
+    }
+    100% {
+      transform: translate(0, 0);
+      opacity: 1;
+    }
+  }
+
+  /* Reticle breathe */
+  @keyframes tour-reticle-breathe {
+    0%,
+    100% {
+      opacity: 0.7;
+    }
+    50% {
+      opacity: 1;
+    }
+  }
+
+  /* Orbit rotations for orbital launch (GPU-cheap transform) */
+  @keyframes tour-orbit-cw {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  @keyframes tour-orbit-ccw {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(-360deg);
+    }
+  }
+
+  /* Star twinkle for orbital launch (opacity only) */
+  @keyframes tour-star-twinkle {
+    0%,
+    100% {
+      opacity: 0.25;
+    }
+    50% {
+      opacity: 0.95;
+    }
+  }
+
+  /* Hint badge shimmer sweep */
+  @keyframes tour-shimmer {
+    0% {
+      background-position: -200% center;
+    }
+    100% {
+      background-position: 200% center;
+    }
+  }
+
+  /* Leader line draw */
+  @keyframes tour-leader-draw {
+    from {
+      stroke-dashoffset: var(--leader-length, 200);
+    }
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+
+  /* Completion check draw */
+  @keyframes tour-check-draw {
+    from {
+      stroke-dashoffset: 100;
+    }
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+
+  /* Pane header underline sweep */
+  @keyframes tour-underline-sweep {
+    from {
+      transform: scaleX(0);
+      transform-origin: left;
+    }
+    to {
+      transform: scaleX(1);
+      transform-origin: left;
+    }
+  }
+
+  /* Perspective grid drift (welcome scene background) */
+  @keyframes tour-grid-drift {
+    from {
+      background-position: 0 0;
+    }
+    to {
+      background-position: 0 80px;
+    }
+  }
+
+  /* ── Welcome screen keyframes (ambient motion) ────────────────────────── */
+
+  /* Logo subtle ambient float after intro finishes (pure GPU translateY) */
+  @keyframes welcome-logo-float {
+    0%,
+    100% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-3px);
+    }
+  }
+
+  /* Logo subtle ambient glow breathe */
+  @keyframes welcome-logo-breathe {
+    0%,
+    100% {
+      opacity: 0.65;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.88;
+      transform: scale(1.03);
+    }
+  }
+}
+
+/* ── Tour accent CSS variable per tour ID ───────────────────────────────────── */
+[data-tour-id="onboarding"] {
+  --tour-accent: var(--primary, #2563eb);
+}
+:root:not(.dark) [data-tour-id="onboarding"],
+[data-theme="light"] [data-tour-id="onboarding"],
+.light [data-tour-id="onboarding"] {
+  --tour-accent: var(--accent-ink, var(--primary, #1d4ed8));
+}
+
+[data-tour-id="settings"] {
+  --tour-accent: #0d9488;
+}
+:root:not(.dark) [data-tour-id="settings"],
+[data-theme="light"] [data-tour-id="settings"],
+.light [data-tour-id="settings"] {
+  --tour-accent: #0f766e;
+}
+
+/* ── Utility classes used by tour components ─────────────────────────────────  */
+
+/* Opaque gradient card background using theme tokens */
+.tour-card-bg {
+  background: var(--tour-surface);
+}
+
+/* Top-lit 1px gradient border via mask-composite */
+.tour-card-border {
+  position: relative;
+}
+.tour-card-border::before {
+  position: absolute;
+  inset: 0;
+  padding: 1px;
+  pointer-events: none;
+  content: "";
+  background: linear-gradient(
+    165deg,
+    color-mix(in oklab, var(--tour-text) 16%, transparent) 0%,
+    color-mix(in oklab, var(--tour-text) 4%, transparent) 40%,
+    var(--tour-border) 100%
+  );
+  border-radius: inherit;
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+
+/* Inner top highlight */
+.tour-card-highlight::after {
+  position: absolute;
+  top: 0;
+  right: 10%;
+  left: 10%;
+  height: 1px;
+  pointer-events: none;
+  content: "";
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in oklab, var(--tour-text) 14%, transparent) 40%,
+    color-mix(in oklab, var(--tour-text) 14%, transparent) 60%,
+    transparent
+  );
+}
+
+/* 3% grain layer (full tier only) */
+@media (prefers-reduced-motion: no-preference) {
+  [data-performance-tier="performance"] .tour-grain::after {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    content: "";
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+    border-radius: inherit;
+    opacity: 0.03;
+  }
+}
+
+/* Welcome rotating conic border (full tier) */
+@media (prefers-reduced-motion: no-preference) {
+  [data-performance-tier="performance"] .tour-conic-border {
+    background: conic-gradient(
+      from var(--tour-angle),
+      color-mix(in oklab, var(--tour-accent) 0%, transparent),
+      color-mix(in oklab, var(--tour-accent) 80%, transparent) 20%,
+      color-mix(in oklab, var(--tour-accent) 0%, transparent) 40%
+    );
+    animation: tour-conic-spin 6s linear infinite;
+  }
+}
+
+/* Reticle breathe (full + lite) */
+@media (prefers-reduced-motion: no-preference) {
+  .tour-reticle-breathe {
+    animation: tour-reticle-breathe 2.2s ease-in-out infinite;
+  }
+}
+
+/* Shimmer on hint badge (full tier) */
+@media (prefers-reduced-motion: no-preference) {
+  [data-performance-tier="performance"] .tour-hint-shimmer {
+    background-size: 200% 100%;
+    animation: tour-shimmer 2.4s linear infinite;
+  }
+}
+
+/* ── Portaled menus, dropdowns, popovers & selects elevation during active tour ── */
+html[data-tour-active] [data-radix-popper-content-wrapper],
+html[data-tour-active] [data-slot="dropdown-menu-content"],
+html[data-tour-active] [data-slot="popover-content"],
+html[data-tour-active] [data-slot="select-content"],
+html[data-tour-active] [role="menu"],
+html[data-tour-active] [role="listbox"],
+html[data-tour-active] [data-radix-select-content],
+html[data-tour-active] [data-radix-dropdown-menu-content],
+html[data-tour-active] [data-radix-popover-content] {
+  z-index: 9994 !important;
+  pointer-events: auto !important;
+}

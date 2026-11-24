@@ -1,6 +1,7 @@
+import { messages, NextIntlClientProvider } from "@workspace/i18n";
+import { routing } from "@workspace/i18n/routing";
+import { setRequestLocale } from "@workspace/i18n/server";
 import { notFound } from "next/navigation";
-import { messages, NextIntlClientProvider } from "@/i18n";
-import { routing } from "@/i18n/routing";
 
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));
@@ -13,21 +14,30 @@ export default async function LocaleLayout({
   children: React.ReactNode;
   params: Promise<{ locale: string }>;
 }>) {
-  const { locale } = await params;
+  const resolvedParams = await params;
+  const locale = resolvedParams?.locale;
 
   // Validate that the incoming `locale` parameter is valid
-  if (!routing.locales.includes(locale as (typeof routing.locales)[number])) {
-    console.log("INVALID LOCALE", locale);
+  if (
+    !(
+      locale &&
+      routing.locales.includes(locale as (typeof routing.locales)[number])
+    )
+  ) {
     notFound();
   }
 
+  // Enable static rendering for next-intl server components & request config
+  setRequestLocale(locale);
+
   // Get messages for the current locale (client-side loading for Tauri)
-  const validatedLocale = locale as keyof typeof messages;
-  const localeMessages = messages[validatedLocale];
+  const localeMessages =
+    messages[locale as keyof typeof messages] ??
+    messages[routing.defaultLocale];
 
   return (
     <NextIntlClientProvider
-      locale={validatedLocale}
+      locale={locale}
       messages={localeMessages}
       timeZone="UTC"
     >

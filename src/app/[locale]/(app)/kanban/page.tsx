@@ -1,14 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "@/i18n/navigation";
+import { KanbanPage } from "@workspace/core/pages/kanban-page";
 
-export default function RedirectPage() {
-  const router = useRouter();
-
-  useEffect(() => {
-    router.replace("/workspace");
-  }, [router]);
-
-  return null;
+export default function Kanban() {
+  return <KanbanPage />;
 }

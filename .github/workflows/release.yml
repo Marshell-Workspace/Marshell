@@ -1,53 +1,13 @@
-name: Release
+name: Release Build (Manual)
 
+# Manual dispatch only: produces unsigned desktop bundles as workflow artifacts
+# without signing keys, updater endpoints, or release upload secrets.
 on:
-  push:
-    tags:
-      - "v*"
   workflow_dispatch:
 
-permissions:
-  contents: write
-
 jobs:
-  create-release:
-    name: Create Release
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    outputs:
-      release_id: ${{ steps.create-release.outputs.id }}
-    steps:
-      - name: Create Release
-        id: create-release
-        uses: softprops/action-gh-release@v2
-        with:
-          name: "Hyperion ${{ github.ref_name }}"
-          tag_name: ${{ github.ref_name }}
-          body: |
-            ## Hyperion Desktop ${{ github.ref_name }}
-
-            ### Installation
-
-            **One-line install (Linux/macOS):**
-            ```bash
-            curl -fsSL https://hyperion.dev/install.sh | bash
-            ```
-
-            **Or download the installer for your platform below.**
-
-            ### What's Changed
-            See the [CHANGELOG](https://github.com/BhagirathsinhRana378/Hyperion/blob/main/CHANGELOG.md) for details.
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
   build-desktop:
     name: Build Desktop (${{ matrix.os_name }})
-    needs: create-release
-    permissions:
-      contents: write
     strategy:
       fail-fast: false
       matrix:
@@ -55,15 +15,12 @@ jobs:
           - platform: macos-latest
             args: "--target universal-apple-darwin"
             os_name: darwin
-            arch: universal
           - platform: ubuntu-22.04
             args: ""
             os_name: linux
-            arch: amd64
           - platform: windows-latest
             args: ""
             os_name: windows
-            arch: amd64
 
     runs-on: ${{ matrix.platform }}
     timeout-minutes: 45
@@ -78,7 +35,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: pnpm
+          cache: "pnpm"
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -108,74 +65,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build Tauri Desktop Client
-        uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build Tauri bundle
+        run: pnpm tauri build ${{ matrix.args }}
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
         with:
-          projectPath: .
-          tauriScript: pnpm tauri
-          releaseId: ${{ needs.create-release.outputs.release_id }}
-          args: ${{ matrix.args }}
-
-      # After tauri-action, also upload portable archive for installer scripts
-      - name: Package portable archive (Linux)
-        if: matrix.os_name == 'linux'
-        run: |
-          BINARY_PATH=$(find src-tauri/target/release/bundle -name "*.AppImage" -o -name "hyperion" 2>/dev/null | head -1)
-          
-          if [ -z "$BINARY_PATH" ]; then
-            BINARY_PATH="src-tauri/target/release/hyperion"
-          fi
-          
-          if [ -f "$BINARY_PATH" ]; then
-            mkdir -p /tmp/hyperion-package
-            cp "$BINARY_PATH" /tmp/hyperion-package/hyperion
-            chmod +x /tmp/hyperion-package/hyperion
-            cd /tmp/hyperion-package
-            tar -czf /tmp/hyperion_linux_amd64.tar.gz hyperion
-            echo "ARCHIVE_PATH=/tmp/hyperion_linux_amd64.tar.gz" >> $GITHUB_ENV
-            echo "ARCHIVE_NAME=hyperion_linux_amd64.tar.gz" >> $GITHUB_ENV
-          fi
-
-      - name: Package portable archive (macOS)
-        if: matrix.os_name == 'darwin'
-        run: |
-          BINARY_PATH=$(find src-tauri/target -name "Hyperion" -o -name "hyperion" 2>/dev/null | grep -v deps | head -1)
-          
-          if [ -z "$BINARY_PATH" ]; then
-            BINARY_PATH="src-tauri/target/universal-apple-darwin/release/hyperion"
-          fi
-          
-          if [ -f "$BINARY_PATH" ]; then
-            mkdir -p /tmp/hyperion-package
-            cp "$BINARY_PATH" /tmp/hyperion-package/hyperion
-            chmod +x /tmp/hyperion-package/hyperion
-            cd /tmp/hyperion-package
-            tar -czf /tmp/hyperion_darwin_universal.tar.gz hyperion
-            echo "ARCHIVE_PATH=/tmp/hyperion_darwin_universal.tar.gz" >> $GITHUB_ENV
-            echo "ARCHIVE_NAME=hyperion_darwin_universal.tar.gz" >> $GITHUB_ENV
-          fi
-
-      - name: Package portable archive (Windows)
-        if: matrix.os_name == 'windows'
-        shell: pwsh
-        run: |
-          $binary = Get-ChildItem -Path "src-tauri/target/release" -Filter "hyperion.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
-          
-          if ($binary) {
-            New-Item -ItemType Directory -Force -Path "$env:TEMP/hyperion-package" | Out-Null
-            Copy-Item $binary.FullName "$env:TEMP/hyperion-package/hyperion.exe"
-            Compress-Archive -Path "$env:TEMP/hyperion-package/hyperion.exe" -DestinationPath "$env:TEMP/hyperion_windows_amd64.zip"
-            echo "ARCHIVE_PATH=$env:TEMP/hyperion_windows_amd64.zip" >> $env:GITHUB_ENV
-            echo "ARCHIVE_NAME=hyperion_windows_amd64.zip" >> $env:GITHUB_ENV
-          }
-
-      - name: Upload portable archive to release
-        if: env.ARCHIVE_PATH != ''
-        uses: softprops/action-gh-release@v2
-        with:
-          files: ${{ env.ARCHIVE_PATH }}
-          tag_name: ${{ github.ref_name }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          name: marshell-${{ matrix.os_name }}
+          path: src-tauri/target/**/release/bundle/**

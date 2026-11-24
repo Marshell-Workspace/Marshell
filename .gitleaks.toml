@@ -1,7 +1,7 @@
-# Gitleaks configuration for Hyperion
+# Gitleaks configuration for Marshell
 # https://github.com/gitleaks/gitleaks
 
-title = "Hyperion secret scanning config"
+title = "Marshell secret scanning config"
 
 # Extend the default ruleset
 [extend]
@@ -22,6 +22,9 @@ paths = [
   "**/src-tauri/target/**",
   # Generated test data
   "**/test-data/**",
+  # Test suites that verify encryption or redaction
+  "(?i).*__tests__/.*",
+  "(?i).*\\.test\\.(ts|tsx|js|jsx)",
 ]
 
 # Allowlist individual known safe values

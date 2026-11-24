@@ -1,4 +1,6 @@
-import { WorkspacePage } from "@/views/workspace-page";
+"use client";
+
+import { WorkspacePage } from "@workspace/core/pages/workspace-page";
 
 export default function Workspace() {
   return <WorkspacePage />;

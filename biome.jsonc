@@ -6,7 +6,13 @@
     "ultracite/biome/next"
   ],
   "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
-  "files": { "ignoreUnknown": false },
+  "files": {
+    "ignoreUnknown": false,
+    "maxSize": 5242880,
+    // Vendored / third-party bundles and the ES5 scripts injected into previewed pages
+    // (see public/scripts/NOTICE.md) are not app source.
+    "includes": ["!public/scripts", "!.claude"]
+  },
   // Ultracite ships an ultra-strict preset that this codebase (ported ReactBits
   // WebGL components, rapidly-iterated marketing pages) predates. These rules
   // are relaxed so the CI lint gate stays meaningful without a large, risky
@@ -16,10 +22,16 @@
   // otherwise win. Genuine correctness rules (unused code, etc.) stay ON.
   "overrides": [
     {
+      "includes": ["public/vectors/**"],
+      "formatter": { "enabled": false },
+      "linter": { "enabled": false }
+    },
+    {
       "includes": ["**"],
       "linter": {
         "rules": {
           "suspicious": {
+            "noControlCharactersInRegex": "off",
             "noExplicitAny": "off",
             "noBitwiseOperators": "off",
             "noImplicitAnyLet": "off",
@@ -29,6 +41,9 @@
             "noEmptySource": "off",
             "useAwait": "off",
             "useIterableCallbackReturn": "off"
+          },
+          "security": {
+            "noDangerouslySetInnerHtml": "off"
           },
           "complexity": {
             "noExcessiveCognitiveComplexity": "off",

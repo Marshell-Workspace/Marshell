@@ -1,0 +1,214 @@
+.scene {
+  position: relative;
+  width: 100%;
+  min-height: 250px;
+  aspect-ratio: 380 / 320;
+  margin: 2px auto 4px;
+  container-type: inline-size;
+  overflow: hidden;
+  user-select: none;
+  isolation: isolate;
+}
+
+.backdrop,
+.character {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.backdrop {
+  color: var(--foreground);
+}
+
+.character {
+  z-index: 2;
+  transition: opacity 160ms ease-out;
+}
+
+.card {
+  position: absolute;
+  top: 43%;
+  right: 4%;
+  bottom: 5%;
+  left: 34.5%;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 21px 14px 17px;
+  text-align: center;
+  background: linear-gradient(
+    130deg,
+    color-mix(in oklab, var(--popover) 94%, var(--foreground)) 0%,
+    color-mix(in oklab, var(--popover) 98%, var(--foreground)) 55%,
+    var(--popover) 100%
+  );
+  border: 1px solid color-mix(in oklab, var(--foreground) 10%, var(--border));
+  border-top-color: color-mix(in oklab, #b9977a 43%, var(--border));
+  border-radius: 18px;
+  box-shadow:
+    0 20px 26px -22px rgb(0 0 0 / 65%),
+    0 2px 5px -3px rgb(0 0 0 / 25%),
+    inset 0 1px 0 color-mix(in oklab, var(--foreground) 8%, transparent);
+  transform-origin: 44% 0;
+}
+
+.eyelet {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  width: 7px;
+  height: 7px;
+  background: var(--popover);
+  border: 1px solid #b9977a;
+  border-radius: 50%;
+  box-shadow: inset 0 1px 3px rgb(0 0 0 / 45%);
+  transform: translateX(-50%);
+}
+
+.impactEdge {
+  position: absolute;
+  inset: -1px;
+  pointer-events: none;
+  border: 1px solid #c6a486;
+  border-radius: inherit;
+}
+
+.bell {
+  flex: 0 0 auto;
+  width: 36px;
+  margin-bottom: 9px;
+  color: color-mix(in oklab, var(--foreground) 84%, var(--muted-foreground));
+}
+
+.bell svg {
+  display: block;
+  width: 100%;
+  overflow: visible;
+}
+
+.title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 560;
+  line-height: 1.4;
+  color: var(--foreground);
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+
+.description {
+  max-width: 190px;
+  margin: 6px 0 0;
+  font-size: 10.5px;
+  line-height: 1.6;
+  color: var(--muted-foreground);
+  text-wrap: pretty;
+  overflow-wrap: anywhere;
+}
+
+.head {
+  transform-origin: 98px 86px;
+  transform-box: view-box;
+}
+
+.scene[data-settled="true"] .head {
+  animation: notification-look 9s 1.8s ease-in-out infinite;
+}
+
+.steam {
+  animation: notification-steam 5s 3s ease-in-out infinite;
+}
+
+.bellSwing {
+  transform-origin: 32px 10px;
+}
+
+.bellMarks {
+  opacity: 0.45;
+}
+
+@container (max-width: 300px) {
+  .card {
+    top: 37%;
+    bottom: 5%;
+    display: grid;
+    grid-template-columns: 24px minmax(0, 1fr);
+    row-gap: 9px;
+    column-gap: 8px;
+    align-content: center;
+    padding: 21px 11px 14px;
+    text-align: left;
+    border-radius: 15px;
+  }
+
+  .bell {
+    grid-row: 1;
+    grid-column: 1;
+    align-self: center;
+    width: 24px;
+    margin: 0;
+  }
+
+  .title {
+    grid-row: 1;
+    grid-column: 2;
+    font-size: 12px;
+    line-height: 1.4;
+  }
+
+  .description {
+    grid-row: 2;
+    grid-column: 1 / -1;
+    margin: 0;
+    font-size: 10.5px;
+    line-height: 1.55;
+  }
+}
+
+@keyframes notification-look {
+  0%,
+  42%,
+  64%,
+  100% {
+    transform: rotate(0deg);
+  }
+  48%,
+  56% {
+    transform: rotate(-4deg);
+  }
+}
+
+@keyframes notification-steam {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: translateY(1px);
+  }
+  50% {
+    opacity: 0.65;
+    transform: translateY(-3px);
+  }
+}
+
+/* JS honors the same preference, including the very first hydration frame. */
+@media (prefers-reduced-motion: reduce) {
+  .scene *,
+  .scene *::before,
+  .scene *::after {
+    animation: none !important;
+  }
+
+  .card {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .character {
+    transition: none;
+  }
+}

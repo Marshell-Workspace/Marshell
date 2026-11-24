@@ -5,6 +5,36 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager};
 
+pub struct AuthCallbackState(tokio::sync::watch::Sender<Option<Result<u16, String>>>);
+
+impl Default for AuthCallbackState {
+    fn default() -> Self {
+        Self(tokio::sync::watch::channel(None).0)
+    }
+}
+
+async fn bind_auth_callback_listener(ports: &[u16]) -> Result<tokio::net::TcpListener, String> {
+    for &port in ports {
+        if let Ok(listener) = tokio::net::TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], port))).await {
+            return Ok(listener);
+        }
+    }
+    Err("Could not start the sign-in callback listener. Please restart Marshell.".into())
+}
+
+#[tauri::command]
+pub async fn get_auth_callback_port(state: tauri::State<'_, AuthCallbackState>) -> Result<u16, String> {
+    let mut receiver = state.0.subscribe();
+    tokio::time::timeout(std::time::Duration::from_secs(10), async move {
+        loop {
+            if let Some(result) = receiver.borrow().clone() {
+                return result;
+            }
+            receiver.changed().await.map_err(|_| "Sign-in callback listener stopped.".to_string())?;
+        }
+    }).await.map_err(|_| "Sign-in callback listener is not ready. Please try again.".to_string())?
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuthSession {
     pub session_id: String,
@@ -65,9 +95,8 @@ pub fn open_browser(app: AppHandle, url: String) -> Result<(), String> {
 }
 
 pub fn start_auth_listener(app_handle: AppHandle) {
+    let callback_state = app_handle.state::<AuthCallbackState>().0.clone();
     tauri::async_runtime::spawn(async move {
-        let addr = SocketAddr::from(([127, 0, 0, 1], 8787));
-        let fallback_addr = SocketAddr::from(([127, 0, 0, 1], 8788));
 
         let handle = Arc::new(app_handle);
         let app = Router::new().route(
@@ -105,6 +134,21 @@ pub fn start_auth_listener(app_handle: AppHandle) {
                             }
 
                             handle.emit("auth-success", &session_obj).ok();
+                        } else if let (Some(code), Some(state)) =
+                            (params.get("code"), params.get("state"))
+                        {
+                            handle
+                                .emit(
+                                    "auth-code",
+                                    serde_json::json!({ "code": code, "state": state }),
+                                )
+                                .ok();
+                        }
+
+                        if let Some(window) = handle.get_webview_window("main") {
+                            let _ = window.show();
+                            let _ = window.unminimize();
+                            let _ = window.set_focus();
                         }
 
                         Html(r#"<!DOCTYPE html>
@@ -112,10 +156,10 @@ pub fn start_auth_listener(app_handle: AppHandle) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hyperion Auth</title>
+    <title>Marshell Auth</title>
     <style>
         body { margin: 0; padding: 0; background-color: #09090b; color: #f4f4f5; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; }
-        .container { background-color: #18181b; border: 1px solid #27272a; padding: 2.5rem; border-radius: 1rem; text-align: center; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5); max-width: 380px; width: 100%; }
+        .container { background-color: #101010; border: 1px solid rgba(255, 255, 255, 0.08); padding: 2.5rem; border-radius: 1rem; text-align: center; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4); max-width: 380px; width: 100%; }
         .icon { width: 3.5rem; height: 3.5rem; background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.25rem auto; color: #22c55e; }
         h1 { margin: 0 0 0.5rem 0; font-size: 1.35rem; font-weight: 700; color: #ffffff; }
         p { color: #a1a1aa; font-size: 0.875rem; margin: 0; line-height: 1.5; }
@@ -128,8 +172,8 @@ pub fn start_auth_listener(app_handle: AppHandle) {
                 <path d="M20 6 9 17l-5-5"/>
             </svg>
         </div>
-        <h1>Authentication Successful</h1>
-        <p>Your session has been securely transferred. You can close this window and return to Hyperion.</p>
+        <h1>Sign-in received</h1>
+        <p>Return to Marshell to finish signing in. The app will confirm your session or show any connection error.</p>
     </div>
     <script>setTimeout(() => { window.close(); }, 3000);</script>
 </body>
@@ -139,21 +183,39 @@ pub fn start_auth_listener(app_handle: AppHandle) {
             }),
         );
 
-        let listener = match tokio::net::TcpListener::bind(addr).await {
-            Ok(l) => l,
-            Err(_) => match tokio::net::TcpListener::bind(fallback_addr).await {
-                Ok(l) => l,
-                Err(e) => {
-                    eprintln!("Failed to bind auth listener on 8787/8788: {}", e);
-                    return;
-                }
-            },
+        let listener = match bind_auth_callback_listener(&[8844, 8845, 0]).await {
+            Ok(listener) => listener,
+            Err(error) => {
+                callback_state.send_replace(Some(Err(error)));
+                return;
+            }
         };
 
-        println!(
-            "Hyperion auth callback listener running on port {}",
-            listener.local_addr().unwrap().port()
-        );
-        axum::serve(listener, app).await.unwrap();
+        if let Ok(addr) = listener.local_addr() {
+            callback_state.send_replace(Some(Ok(addr.port())));
+            println!(
+                "Marshell auth callback listener running on port {}",
+                addr.port()
+            );
+        }
+        if let Err(e) = axum::serve(listener, app).await {
+            callback_state.send_replace(Some(Err(format!("Sign-in callback listener stopped: {e}"))));
+            eprintln!("Auth callback listener error: {e}");
+        }
     });
+}
+
+#[cfg(test)]
+mod callback_tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn occupied_callback_port_falls_back_to_the_actual_bound_port() {
+        let occupied = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let occupied_port = occupied.local_addr().unwrap().port();
+        let listener = bind_auth_callback_listener(&[occupied_port, 0]).await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        assert_ne!(port, occupied_port);
+        assert_ne!(port, 0);
+    }
 }

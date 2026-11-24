@@ -1,11 +1,11 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Hyperion",
-  "version": "1.0.0",
+  "productName": "Marshell",
+  "version": "1.1.5",
   "identifier": "com.hyperion.desktop",
   "build": {
     "beforeDevCommand": "pnpm dev",
-    "devUrl": "http://localhost:3000/en",
+    "devUrl": "http://localhost:3010",
     "beforeBuildCommand": "pnpm build",
     "frontendDist": "../out"
   },
@@ -13,7 +13,8 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "Hyperion",
+        "label": "main",
+        "title": "Marshell",
         "width": 800,
         "height": 600
       }
@@ -26,11 +27,26 @@
     "active": true,
     "targets": "all",
     "icon": [
+      "icons/16x16.png",
       "icons/32x32.png",
+      "icons/64x64.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
+      "icons/256x256.png",
+      "icons/512x512.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "windows": {
+      "nsis": {
+        "displayLanguageSelector": false,
+        "installerIcon": "icons/icon.ico"
+      }
+    },
+    "linux": {
+      "appimage": {
+        "bundleMediaFramework": true
+      }
+    }
   }
 }

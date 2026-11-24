@@ -7,13 +7,25 @@ node_modules
 
 # Local env files
 .env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+.env.*
+!.env.example
+*.env
+
+# Credentials and Keys
+*.pem
+*.key
+*.p12
+*.pfx
+*.cert
+*.crt
+id_rsa
+id_ecdsa
+id_ed25519
+credentials.json
 
 # Testing
 coverage
+test-results/
 
 # Turbo
 .turbo
@@ -26,6 +38,10 @@ coverage
 out/
 build
 dist
+**/src-tauri/target/
+**/src-tauri/gen/
+**/target/
+
 
 # Fumadocs generated
 .source
@@ -36,7 +52,15 @@ npm-debug.log*
 
 # Misc
 .DS_Store
-*.pem
 *.tsbuildinfo
+next-env.d.ts
 # Antigravity Agents
 .agents/
+scratch/
+
+# Local Dev Launcher
+marshell-dev-launcher.bat
+
+# Local QA previews
+.work/
+.taste-skill/

@@ -1,10 +1,8 @@
-# Hyperion
+# Marshell
 
-Hyperion is a single, flat Tauri 2 + Next.js application — the desktop/mobile agentic workspace client. There is no monorepo: one `package.json`, one `src/`, one `src-tauri/`, all at the repo root.
+Marshell is a cross-platform native application built with Next.js and Tauri 2. The native app exports as a static site loaded by Tauri into a Rust-backed system webview across desktop (Windows, macOS, Linux) and mobile (Android, iOS). The application logic, design system primitives, and translations live in modular workspace packages (`packages/core`, `packages/ui`, `packages/i18n`).
 
-The app is a standard Next.js 16 codebase built as a static HTML export (`output: "export"`), which Tauri 2 loads into a Rust-backed system webview for Windows, macOS, Linux, Android, and iOS. Pages, components, hooks, stores, config, and the design system all live under `src/`.
-
-The project includes 40+ OKLCh color themes with light/dark variants, type-safe i18n via next-intl, a command palette (Cmd+K), keyboard shortcuts, and a sidebar dashboard layout. State management uses Zustand with localStorage persistence. Styling uses Tailwind CSS v4 with shadcn/ui components built on Radix UI.
+The project includes 40+ OKLCh color themes with light/dark variants, type-safe i18n for 10 languages via next-intl, a command palette (Cmd+K), keyboard shortcuts, and an AI agent dashboard workspace. State management uses Zustand with localStorage persistence. Styling uses Tailwind CSS v4 with shadcn/ui components built on Radix UI.
 
 CI/CD runs through GitHub Actions with Release Please for Conventional Commits-based versioning and automated changelogs.
 
@@ -15,55 +13,59 @@ CI/CD runs through GitHub Actions with Release Please for Conventional Commits-b
 pnpm install
 
 # Development
-pnpm dev                   # Next.js dev server (http://localhost:3000)
-pnpm tauri dev             # Desktop
+pnpm dev                   # Next.js dev server (http://localhost:3010)
+pnpm tauri dev             # Desktop app with live reload
 pnpm tauri android dev     # Android
 pnpm tauri ios dev         # iOS
 
-# Quality gates (CI runs all of these on every PR)
+# Quality gates (CI runs these on PRs)
 pnpm check                 # Biome/Ultracite check
-pnpm typecheck             # tsc --noEmit
-pnpm build                 # Full production build (next build)
+pnpm typecheck             # tsc across packages and root app
+pnpm test                  # Vitest unit tests
+pnpm build                 # Next.js static export build
 
 # Utilities
 pnpm fix                   # Auto-format and fix lint issues
 pnpm clean                 # Remove build artifacts
-pnpm shadcn add <name>     # Add a shadcn/ui component to src/components
+pnpm shadcn add <name>     # Add shadcn/ui component to packages/ui
 pnpm deps:check            # Check for outdated deps
 pnpm deps:update           # Interactive update
 ```
 
-Run everything from the repo root — there are no workspace packages or filters to worry about.
+Run from the repo root; never `cd` into a package to run scripts.
 
-## Project structure
+## Architecture
 
 ```
-src/
-  app/            Next.js App Router pages ([locale] routing via next-intl)
-  components/     shadcn/ui primitives + feature components (auth, kanban, layout, navigation, panels, terminal...)
-  hooks/          Shared React hooks
-  i18n/           next-intl routing, navigation, plugin, messages/*.json
-  lib/            Utilities (cn, motion, storage, AI provider factory, ...)
-  pages/          Top-level page components rendered by app routes
-  providers/      Context providers (theme, auth)
-  stores/         Zustand stores
-  config/         Site, navigation, hotkeys, notifications config
-  styles/         Tailwind v4 global styles + theme tokens
-  scripts/        Client-side init scripts
+src/                  Root Next.js App Router (entry points, pages, layouts)
+src-tauri/            Tauri 2 backend (Rust, windowing, native APIs, PTY)
+public/               Static assets (icons, images)
 
-src-tauri/        Rust backend, Tauri config, capabilities, platform gen/
-public/           Static assets
+packages/
+  core/               Business logic: pages, components, hooks, stores, providers, config
+  ui/                 Design system: shadcn/ui primitives, 40+ themes, global styles (Tailwind v4)
+  i18n/               10-language type-safe translations (next-intl)
+  typescript-config/  Shared tsconfig presets (base, nextjs, react-library)
 ```
 
-Everything is imported via the `@/*` path alias (e.g. `@/components/button`, `@/lib/utils`, `@/i18n/routing`) — never deep relative paths across top-level `src/` folders.
+### Dependency flow
+
+```
+Root App (src / src-tauri)
+  └─ @workspace/core
+       ├─ @workspace/ui
+       └─ @workspace/i18n
+```
+
+Root app imports pages, layouts, and state from `packages/core`. Do not put platform-specific UI logic in `packages/core`; use the `@tauri-apps/api` guard pattern already in place.
 
 ## Coding standards
 
 ### TypeScript
 
 - Strict mode is on globally (`strict: true`, `noUncheckedIndexedAccess: true`).
-- Target: `ES2022`. Module: `ESNext` / `Bundler` resolution.
-- All new code must be TypeScript. No `.js` files in `src/`.
+- Target: `ES2022`. Module: `NodeNext`.
+- All new code must be TypeScript. No `.js` files in `packages/` or `apps/` source directories.
 
 ### Formatting and Linting (Biome/Ultracite)
 
@@ -71,7 +73,7 @@ Everything is imported via the `@/*` path alias (e.g. `@/components/button`, `@/
 - Formatting is strictly enforced (double quotes, 2-space indent).
 - Linting catches issues but favors warnings or auto-fixing over failing builds locally.
 - Tailwind class sorting is handled natively by Biome (`npx @biomejs/biome check`).
-- Stylesheet reference: `src/styles/globals.css`.
+- Stylesheet reference: `packages/ui/src/styles/globals.css`.
 - Run `pnpm fix` to automatically resolve formatting and lint issues.
 
 ### Commit messages
@@ -95,40 +97,45 @@ Follow [Conventional Commits](https://www.conventionalcommits.org/). Release Ple
 
 ### Do
 
-- Add new UI primitives to `src/components/`. Use shadcn/ui patterns.
-- Add shared pages to `src/pages/`, hooks to `src/hooks/`, stores to `src/stores/`.
-- Add new translations to `src/i18n/messages/*.json`.
-- Use the `@/*` path alias for all imports, never deep relative paths across top-level `src/` folders.
+- Add new UI primitives to `packages/ui/src/components/`. Use shadcn/ui patterns.
+- Add shared pages to `packages/core/src/pages/`, hooks to `hooks/`, stores to `stores/`.
+- Add new translations to all 10 JSON files in `packages/i18n/src/messages/` (de, en, es, fr, it, ja, pt, ru, tr, zh).
+- Use `@workspace/ui`, `@workspace/core`, `@workspace/i18n` workspace imports, never relative paths across package boundaries.
+- Export new modules via the `exports` field in the respective `package.json`.
 
 ### Do not
 
+- Do not modify `packages/typescript-config/` without explicit approval.
+- Do not add app-specific dependencies to shared packages (`core`, `ui`, `i18n`).
 - Do not modify `release-please-config.json`, `.release-please-manifest.json`, or GitHub workflow files without explicit approval.
 - Do not use `npm` or `yarn`. This repo uses pnpm exclusively (v10+, corepack-managed).
-- Do not add `"use server"` directives. The app must stay static-export compatible (`output: "export"`).
-- Do not edit auto-generated directories: `.next/`, `out/`, `dist/`, `src-tauri/gen/`, `src-tauri/target/`, `node_modules/`.
+- Do not add `"use server"` directives in `packages/core`. It must stay runtime-agnostic for static export.
+- Do not edit auto-generated directories: `.next/`, `.source/`, `.turbo/`, `dist/`, `gen/`, `node_modules/`.
 
 ## Config locations
 
-| What                | Where                          |
-| ------------------- | ------------------------------ |
-| Site metadata        | `src/config/site.ts`           |
-| Navigation config    | `src/config/navigation.ts`     |
-| Global CSS + themes  | `src/styles/globals.css`, `src/app/globals.css` |
-| Tauri config         | `src-tauri/tauri.conf.json`    |
-| Next.js config       | `next.config.ts`               |
-| i18n routing/messages| `src/i18n/routing.ts`, `src/i18n/messages/*.json` |
+| What                  | Where                                              |
+| --------------------- | -------------------------------------------------- |
+| Site metadata         | `packages/core/src/config/site.ts`                 |
+| Navigation config     | `packages/core/src/config/navigation.ts`           |
+| Global CSS + themes   | `packages/ui/src/styles/globals.css`               |
+| Tauri config          | `src-tauri/tauri.conf.json`                        |
+| Next.js config        | `next.config.ts`                                   |
 
 ## Gotchas
 
-- This app sets `output: "export"` in `next.config.ts`. API routes, server components, and `revalidate` will not work.
-- This project uses Tailwind CSS v4 with `@tailwindcss/postcss`. Configuration lives in `globals.css`, not `tailwind.config.ts`.
-- The static-export locale loading path is `src/i18n/request.ts` (messages are loaded client-side via `NextIntlClientProvider` in `src/app/[locale]/layout.tsx`, not via server-side request config).
-- Always add shadcn/ui components via `pnpm shadcn add <name>` from root. They land in `src/components/`.
+- The root app sets `output: "export"` in Next.js config for static export to Tauri. API routes, server components, and `revalidate` will not work there.
+- This project uses Tailwind CSS v4 with `@tailwindcss/postcss`. Configuration lives in `packages/ui/src/styles/globals.css`.
+- `packages/i18n` static routing config is set in `src/i18n/request.ts`.
+- Always add shadcn/ui components via `pnpm shadcn add <name>` from root. They land in `packages/ui/src/components/`.
 - The repo requires squash merging with PR title as commit message. This keeps a linear history for Release Please.
 
 ## Testing
 
-- No test framework is configured yet. When adding tests, use Vitest and co-locate test files next to source (`*.test.ts`).
+- All release uploads must go through `scripts/publish-release.ts`. Keep its 8 GB account-wide storage preflight, Standard storage class, and current-release-only R2 retention. Never bypass these checks with a manual upload script. Older installers remain archived on GitHub; do not retain their R2 copies.
+- Run `pnpm test:release-storage` when changing release publishing or retention. `RELEASE_STORAGE_CHECK_ONLY=1` performs a read-only publishing preflight.
+
+- Unit tests use Vitest (`packages/core`). Run with `pnpm test`. Co-locate test files next to source (`*.test.ts`).
 
 ## Prerequisites
 

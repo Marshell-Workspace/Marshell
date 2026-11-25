@@ -1,8 +1,5 @@
 import { afterEach, expect, it, vi } from "vitest";
-import {
-  checkAllCliAgents,
-  invalidateCliCache,
-} from "./cli-installer-client";
+import { checkAllCliAgents, invalidateCliCache } from "./cli-installer-client";
 
 const { invoke } = vi.hoisted(() => ({ invoke: vi.fn() }));
 vi.mock("@tauri-apps/api/core", () => ({ invoke }));

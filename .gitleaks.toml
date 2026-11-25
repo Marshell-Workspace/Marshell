@@ -7,41 +7,12 @@ title = "Marshell secret scanning config"
 [extend]
 useDefault = true
 
-# Paths to always skip (globs)
-[allowlist]
-paths = [
-  # Test fixtures that may contain fake keys
-  "(?i)test.*fixture",
-  "(?i)__snapshots__",
-  # MDX documentation examples
-  "*.mdx",
-  "*.md",
-  # Lock files are too large / have false positives
-  "pnpm-lock.yaml",
-  # Tauri build artifacts
-  "**/src-tauri/target/**",
-  # Generated test data
-  "**/test-data/**",
-  # Test suites that verify encryption or redaction
-  "(?i).*__tests__/.*",
-  "(?i).*\\.test\\.(ts|tsx|js|jsx)",
-]
+[[rules]]
+id = "generic-api-key"
 
-# Allowlist individual known safe values
-[[allowlist.allowlist]]
-regexTarget = "line"
-regexes = [
-  # This is a public key (pk_test) used in CI — it's designed to be public
-  "pk_test_ZHVtbXktcHVibGlzaGFibGUta2V5",
-  # Example/placeholder values
-  "your-.*-here",
-  "CHANGE_ME",
-  # Version strings that look like tokens
-  "\\d+\\.\\d+\\.\\d+",
-]
-
-# Allow specific file-level exclusions
-[[allowlist.allowlist]]
-paths = [
-  ".env.local",
-]
+[[rules.allowlists]]
+description = "Public property access in the verified Eruda 3.4.3 bundle"
+condition = "AND"
+paths = ['''^public/scripts/eruda\.js$''']
+regexTarget = "match"
+regexes = ['''^this\.accessGetter,r=this\.unenumerable;$''']

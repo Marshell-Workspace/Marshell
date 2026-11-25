@@ -9,8 +9,15 @@ export function supportsWorkspaceGateway(_agentId: string): boolean {
 
 export function workspaceAgentCommand(
   agent: Pick<CliItemMeta, "id" | "command">,
-  _route?: WorkspaceAgentRoute
+  _route?: WorkspaceAgentRoute,
+  status?: CliItemStatus
 ): string {
+  if (status?.status === "installed" && status.commandName) {
+    const separator = agent.command.indexOf(" ");
+    return separator === -1
+      ? status.commandName
+      : status.commandName + agent.command.slice(separator);
+  }
   return agent.command;
 }
 

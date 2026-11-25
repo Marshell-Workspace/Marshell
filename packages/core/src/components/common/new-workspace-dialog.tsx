@@ -11,8 +11,6 @@ import {
 import {
   type CliItemStatus,
   checkAllCliAgents,
-  invalidateCliCache,
-  refreshCliEnvironment,
 } from "@workspace/core/lib/cli-installer-client";
 import { validateFolderPath } from "@workspace/core/lib/folder-picker-client";
 import { openExternalUrl } from "@workspace/core/lib/open-url";
@@ -164,13 +162,13 @@ export function NewWorkspaceDialog({
     }
 
     try {
-      if (force) {
-        invalidateCliCache();
-        await refreshCliEnvironment();
-      }
       const results = await checkAllCliAgents(force);
       if (isMountedRef.current) {
         setInstallStatusMap(results);
+        if (Object.keys(results).length === 0) {
+          setLastCheckedTime(null);
+          return;
+        }
         const now = new Date();
         const timeStr = now
           .toLocaleTimeString([], {
@@ -222,7 +220,11 @@ export function NewWorkspaceDialog({
   };
 
   const handleLaunchAgent = (agent: CliItemMeta) => {
-    const command = workspaceAgentCommand(agent, "direct");
+    const command = workspaceAgentCommand(
+      agent,
+      "direct",
+      installStatusMap[agent.id]
+    );
     applyAutoRunCommand(command);
   };
 

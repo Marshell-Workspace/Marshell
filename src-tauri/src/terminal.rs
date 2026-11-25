@@ -342,6 +342,9 @@ fn build_shell_command(shell: Option<&str>, cwd: Option<&str>, _id: &str) -> Com
     cmd.env("TERM", "xterm-256color");
     cmd.env("COLORTERM", "truecolor");
 
+    #[cfg(windows)]
+    cmd.env("PATH", crate::build_merged_path());
+
     #[cfg(not(target_os = "windows"))]
     {
         if std::env::var("LANG").is_err() {

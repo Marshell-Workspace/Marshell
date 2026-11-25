@@ -14,6 +14,7 @@ export interface CliInstallEventPayload {
 
 export interface CliDetectionResult {
   checkedAt?: number;
+  commandName?: string;
   executable?: string;
   id: string;
   name?: string;
@@ -36,7 +37,11 @@ export type CliItemStatus = CliDetectionResult;
 export async function checkCliInstalled(
   id: string
 ): Promise<CliDetectionResult> {
-  return { id, status: "not-installed" };
+  try {
+    return (await checkAllCliAgents())[id] ?? { id, status: "unknown" };
+  } catch {
+    return { id, status: "unknown" };
+  }
 }
 
 let cachedStatusMap: Record<string, CliDetectionResult> | null = null;
@@ -53,10 +58,21 @@ export function getCachedCliStatusMap(): Record<
 }
 
 export async function checkAllCliAgents(
-  _force = false
+  force = false
 ): Promise<Record<string, CliDetectionResult>> {
-  cachedStatusMap = {};
-  return {};
+  if (typeof window === "undefined" || !("__TAURI_INTERNALS__" in window)) {
+    return {};
+  }
+  if (!force && cachedStatusMap) {
+    return cachedStatusMap;
+  }
+  const { invoke } = await import("@tauri-apps/api/core");
+  const results = await invoke<Record<string, CliDetectionResult>>(
+    "check_all_cli_agents",
+    { force }
+  );
+  cachedStatusMap = results;
+  return results;
 }
 
 export async function installCliAgent(_id: string): Promise<boolean> {

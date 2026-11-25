@@ -1,5 +1,6 @@
 // Module declarations
 mod auth;
+mod cli_detection;
 mod credential_session;
 mod external_editor;
 pub mod fs_tools;
@@ -28,7 +29,11 @@ pub(crate) fn build_merged_path() -> std::ffi::OsString {
   {
     process_environment::process_path()
   }
-  #[cfg(not(unix))]
+  #[cfg(windows)]
+  {
+    cli_detection::windows_path()
+  }
+  #[cfg(not(any(unix, windows)))]
   {
     std::env::var_os("PATH").unwrap_or_default()
   }
@@ -100,6 +105,7 @@ pub fn run() {
     .invoke_handler(tauri::generate_handler![
       greet,
       desktop_metadata,
+      cli_detection::check_all_cli_agents,
       tool_output::save_tool_output,
       shell_exec::shell_exec,
       shell_exec::shell_status,

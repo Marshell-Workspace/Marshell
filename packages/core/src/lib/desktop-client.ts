@@ -21,6 +21,7 @@ function getOrCreateDeviceId(): string {
 
 export interface DesktopClient {
   deviceId: string;
+  edition?: "open-source";
   platform: "windows" | "darwin" | "linux" | "android" | "ios" | "web";
   version: string;
 }
@@ -33,10 +34,11 @@ export async function getDesktopClient(): Promise<DesktopClient> {
     const { invoke } = await import("@tauri-apps/api/core");
     const metadata =
       await invoke<Omit<DesktopClient, "deviceId">>("desktop_metadata");
-    return { ...metadata, deviceId };
+    return { ...metadata, deviceId, edition: "open-source" };
   }
   return {
     deviceId,
+    edition: "open-source",
     version: process.env.NEXT_PUBLIC_APP_VERSION ?? "0.0.1",
     platform: "web",
   };

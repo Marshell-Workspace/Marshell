@@ -1,6 +1,10 @@
 "use client";
 
-import { AccountPanel } from "@workspace/core/components/panels/account-panel";
+import { LogoutDialog } from "@workspace/core/components/auth/logout-dialog";
+import {
+  AccountPanel,
+  signOutAccount,
+} from "@workspace/core/components/panels/account-panel";
 import { AppearanceSettingsTab } from "@workspace/core/components/settings/appearance-settings-tab";
 import { NotificationSettingsTab } from "@workspace/core/components/settings/notification-settings-tab";
 import { PerformanceSettingsCard } from "@workspace/core/components/settings/performance-settings-card";
@@ -12,6 +16,8 @@ import {
   usePanelStore,
 } from "@workspace/core/stores/panel-store";
 import { useTutorialStore } from "@workspace/core/stores/tutorial-store";
+import { useTranslations } from "@workspace/i18n";
+import { Button } from "@workspace/ui/components/button";
 import { DialogPrimitive } from "@workspace/ui/components/dialog";
 import {
   GenieModal,
@@ -23,6 +29,7 @@ import {
   Bell,
   CircleUser,
   GraduationCap,
+  LogOut,
   Monitor,
   Palette,
   Search,
@@ -31,6 +38,7 @@ import {
   Zap,
 } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 
 interface NavItemDef {
   icon: React.ComponentType<{ className?: string }>;
@@ -195,10 +203,25 @@ const SETTINGS_NAV_GROUPS: NavGroupDef[] = (() => {
 })();
 
 export function SettingsView({ onClose }: { onClose?: () => void }) {
+  const t = useTranslations("Navigation");
   const activeTab = usePanelStore((s) => s.settingsTab);
   const setSettingsTab = usePanelStore((s) => s.setSettingsTab);
   const [searchQuery, setSearchQuery] = useState("");
+  const [logoutOpen, setLogoutOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const { closeModal, open: isGenieOpen } = useGenieModal();
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      await signOutAccount();
+      setLogoutOpen(false);
+    } catch {
+      toast.error("Could not sign out. Try again.");
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
 
   const handleClose = () => {
     if (isGenieOpen) {
@@ -323,6 +346,18 @@ export function SettingsView({ onClose }: { onClose?: () => void }) {
             </div>
           ))}
         </div>
+
+        <div className="shrink-0 border-border border-t pt-2">
+          <Button
+            className="w-full justify-start text-muted-foreground"
+            onClick={() => setLogoutOpen(true)}
+            type="button"
+            variant="ghost"
+          >
+            <LogOut aria-hidden="true" />
+            {t("logOut")}
+          </Button>
+        </div>
       </aside>
 
       {/* Right Column: Content Panel */}
@@ -350,6 +385,16 @@ export function SettingsView({ onClose }: { onClose?: () => void }) {
           {renderActiveContent()}
         </div>
       </main>
+      <LogoutDialog
+        isLoading={isLoggingOut}
+        onConfirm={handleLogout}
+        onOpenChange={(open) => {
+          if (!isLoggingOut) {
+            setLogoutOpen(open);
+          }
+        }}
+        open={logoutOpen}
+      />
     </div>
   );
 }

@@ -22,6 +22,16 @@ it("rejects broken executables even if detection says installed", () => {
   ).toBe(false);
 });
 
+it("uses the detected executable alias while preserving launch flags", () => {
+  expect(
+    workspaceAgentCommand(
+      { id: "agy", command: "agy --example-flag" },
+      "direct",
+      { id: "agy", status: "installed", commandName: "antigravity" }
+    )
+  ).toBe("antigravity --example-flag");
+});
+
 it.each([
   "codex",
   "claude",

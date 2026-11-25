@@ -187,6 +187,14 @@ function persistProfile(profile: AccountProfile, userId: string) {
   window.dispatchEvent(new Event("storage"));
 }
 
+export async function signOutAccount(onSignedOut?: () => Promise<void>) {
+  await useAuthStore.getState().logout();
+  await onSignedOut?.();
+  localStorage.removeItem(PROFILE_STORAGE_KEY);
+  window.dispatchEvent(new Event("storage"));
+  usePanelStore.getState().closePanel();
+}
+
 export function AccountPanelContent({
   authSession,
   googleAuthState,
@@ -198,7 +206,6 @@ export function AccountPanelContent({
   setSession: (session: AuthSession | null) => void;
   onSignedOut?: () => Promise<void>;
 }) {
-  const closePanel = usePanelStore((s) => s.closePanel);
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
   const [storedProfile] = useState(() => readStoredProfile(authSession));
   const resolvedProfile = useMemo(() => {
@@ -469,13 +476,7 @@ export function AccountPanelContent({
             onClick={async () => {
               setBusy("sign-out");
               try {
-                await useAuthStore.getState().logout();
-                if (onSignedOut) {
-                  await onSignedOut();
-                }
-                localStorage.removeItem(PROFILE_STORAGE_KEY);
-                window.dispatchEvent(new Event("storage"));
-                closePanel();
+                await signOutAccount(onSignedOut);
               } catch (error) {
                 toast.error(
                   getAccountError(error, "Could not sign out. Try again.")
